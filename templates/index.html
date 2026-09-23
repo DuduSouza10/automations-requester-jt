@@ -70,7 +70,7 @@
       </div>
 
       <div class="request-layout">
-        <form class="form-card glass" method="post" action="{{ url_for('create_request') }}">
+        <form class="form-card glass" method="post" enctype="multipart/form-data" action="{{ url_for('create_request') }}">
           <div class="form-intro">
             <div class="form-intro-icon">✨</div>
             <div><span>Nova solicitação</span><strong>Conte o que você precisa automatizar</strong><small>Preencha os dados abaixo. Você poderá acompanhar o andamento por esta mesma central.</small></div>
@@ -115,6 +115,17 @@
             <small class="field-help">Quanto mais contexto, melhor o planejamento da solução.</small>
           </label>
 
+          <label class="field attachment-field">
+            <span>Documentos de apoio <em>Opcional</em></span>
+            <span class="multi-upload">
+              <span class="multi-upload-icon">📎</span>
+              <span class="multi-upload-copy"><strong>Anexar documentos</strong><small>Você pode selecionar vários arquivos de uma vez.</small></span>
+              <span class="multi-upload-action">Escolher arquivos</span>
+              <input type="file" name="documents" multiple>
+            </span>
+            <small class="field-help">Planilhas, PDFs, apresentações, imagens, ZIPs ou outros materiais que ajudem a entender a solicitação.</small>
+          </label>
+
           <div class="form-footer">
             <span class="privacy-note">A solicitação será registrada como <b>Pendente</b>.</span>
             <button class="primary-button" type="submit">Enviar solicitação <span>→</span></button>
@@ -138,7 +149,10 @@
                 </div>
                 <h4>{{ item.name }}</h4>
                 <p>{{ item.details }}</p>
-                {% if item.requester %}<small>Solicitante: {{ item.requester }}{% if item.department %} · {{ item.department }}{% endif %}</small>{% endif %}
+                <div class="queue-meta">
+                  {% if item.requester %}<small>Solicitante: {{ item.requester }}{% if item.department %} · {{ item.department }}{% endif %}</small>{% endif %}
+                  {% if item.attachments %}<small class="attachment-count">📎 {{ item.attachments|length }} documento{% if item.attachments|length != 1 %}s{% endif %}</small>{% endif %}
+                </div>
               </article>
             {% else %}
               <div class="empty-state compact">
@@ -256,7 +270,7 @@
               <span class="kicker">Nova revisão</span>
               <h3 id="modal-title-{{ item.id }}">Solicitar alteração</h3>
               <p>Descreva o que precisa mudar em <strong>{{ item.name }}</strong>. O pedido voltará para a fila de solicitações.</p>
-              <form method="post" action="{{ url_for('request_change', public_id=item.public_id) }}">
+              <form method="post" enctype="multipart/form-data" action="{{ url_for('request_change', public_id=item.public_id) }}">
                 <div class="form-grid two">
                   <label class="field">
                     <span>Seu nome *</span>
@@ -270,6 +284,15 @@
                 <label class="field">
                   <span>Alterações necessárias *</span>
                   <textarea name="change_details" rows="7" required placeholder="Informe os ajustes, correções ou novas funções desejadas..."></textarea>
+                </label>
+                <label class="field attachment-field compact-upload">
+                  <span>Documentos de apoio <em>Opcional</em></span>
+                  <span class="multi-upload">
+                    <span class="multi-upload-icon">📎</span>
+                    <span class="multi-upload-copy"><strong>Anexar documentos</strong><small>Selecione um ou vários arquivos relacionados à alteração.</small></span>
+                    <span class="multi-upload-action">Escolher arquivos</span>
+                    <input type="file" name="documents" multiple>
+                  </span>
                 </label>
                 <div class="modal-actions">
                   <button class="ghost-button" type="button" data-modal-close>Cancelar</button>

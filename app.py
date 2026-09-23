@@ -97,6 +97,20 @@ class Notification(db.Model):
     project = db.relationship("Project", lazy="joined")
 
 
+class RequestAttachment(db.Model):
+    __tablename__ = "request_attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    original_name = db.Column(db.String(255), nullable=False)
+    stored_name = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_local)
+    project = db.relationship(
+        "Project",
+        backref=db.backref("attachments", cascade="all, delete-orphan", lazy="select")
+    )
+
+
 def ensure_schema_columns():
     """Small deploy-safe migration for databases created by older project versions."""
     inspector = inspect(db.engine)
@@ -137,6 +151,32 @@ def save_upload(file_storage, project):
     return safe_name, stored_name
 
 
+def save_request_attachments(files, project):
+    saved = []
+    for file_storage in files:
+        if not file_storage or not file_storage.filename:
+            continue
+        original_name = secure_filename(file_storage.filename) or "documento"
+        stored_name = f"req_{project.public_id}_{uuid.uuid4().hex[:10]}_{original_name}"
+        destination = UPLOAD_DIR / stored_name
+        file_storage.save(destination)
+        attachment = RequestAttachment(
+            project=project,
+            original_name=original_name[:255],
+            stored_name=stored_name,
+        )
+        db.session.add(attachment)
+        saved.append(attachment)
+    return saved
+
+
+def delete_request_attachment_files(project):
+    for attachment in list(project.attachments):
+        candidate = UPLOAD_DIR / attachment.stored_name
+        if candidate.exists() and candidate.is_file():
+            candidate.unlink(missing_ok=True)
+
+
 def delete_project_file(project):
     if project.file_path:
         candidate = UPLOAD_DIR / project.file_path
@@ -173,6 +213,7 @@ def create_request():
     creation_type = request.form.get("creation_type", "").strip()
     requester = request.form.get("requester", "").strip()
     department = request.form.get("department", "").strip()
+    documents = request.files.getlist("documents")
 
     if not name or not details or not requester or not department or creation_type not in {"Robô", "Dashboard", "Automação"}:
         flash("Preencha o nome da automação, seu nome, setor, objetivo e selecione um tipo válido.", "error")
@@ -190,9 +231,11 @@ def create_request():
     )
     db.session.add(project)
     db.session.flush()
+    attachments = save_request_attachments(documents, project)
+    attachment_note = f" · {len(attachments)} documento(s) anexado(s)" if attachments else ""
     notify(
         "Nova solicitação recebida",
-        f"{name} foi enviada por {requester} · {department} para aprovação ({creation_type}).",
+        f"{name} foi enviada por {requester} · {department} para aprovação ({creation_type}){attachment_note}.",
         project,
     )
     db.session.commit()
@@ -206,6 +249,7 @@ def request_change(public_id):
     details = request.form.get("change_details", "").strip()
     requester = request.form.get("requester", "").strip()
     department = request.form.get("department", "").strip()
+    documents = request.files.getlist("documents")
     if not details or not requester or not department:
         flash("Informe seu nome, setor e descreva as alterações desejadas.", "error")
         return redirect(url_for("index") + "#criadas")
@@ -224,9 +268,11 @@ def request_change(public_id):
     )
     db.session.add(change)
     db.session.flush()
+    attachments = save_request_attachments(documents, change)
+    attachment_note = f" Foram anexados {len(attachments)} documento(s)." if attachments else ""
     notify(
         "Alteração solicitada",
-        f"{requester} · {department} solicitou uma alteração em {parent.name}. O pedido voltou para a fila de aprovação.",
+        f"{requester} · {department} solicitou uma alteração em {parent.name}. O pedido voltou para a fila de aprovação.{attachment_note}",
         change,
     )
     db.session.commit()
@@ -240,6 +286,21 @@ def download_file(public_id):
     if not project.file_path or not (UPLOAD_DIR / project.file_path).exists():
         abort(404)
     return send_from_directory(UPLOAD_DIR, project.file_path, as_attachment=True, download_name=project.file_name)
+
+
+@app.get("/admin/anexos/<int:attachment_id>")
+@admin_required
+def download_request_attachment(attachment_id):
+    attachment = RequestAttachment.query.get_or_404(attachment_id)
+    candidate = UPLOAD_DIR / attachment.stored_name
+    if not candidate.exists() or not candidate.is_file():
+        abort(404)
+    return send_from_directory(
+        UPLOAD_DIR,
+        attachment.stored_name,
+        as_attachment=True,
+        download_name=attachment.original_name,
+    )
 
 
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -445,6 +506,9 @@ def delete_project(project_id):
     project = Project.query.get_or_404(project_id)
     if project.source_type == "new":
         delete_project_file(project)
+        for child in project.change_requests.all():
+            delete_request_attachment_files(child)
+    delete_request_attachment_files(project)
     db.session.delete(project)
     db.session.commit()
     flash("Registro excluído.", "success")

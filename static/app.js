@@ -51,6 +51,24 @@
     panel?.classList.toggle('open');
   }));
 
+  // Multiple request attachments: show what was selected.
+  $$('.multi-upload input[type="file"][multiple]').forEach(input => input.addEventListener('change', () => {
+    const box = input.closest('.multi-upload');
+    const title = $('.multi-upload-copy strong', box);
+    const hint = $('.multi-upload-copy small', box);
+    const files = [...input.files];
+    if (!files.length) {
+      if (title) title.textContent = 'Anexar documentos';
+      if (hint) hint.textContent = 'Você pode selecionar vários arquivos de uma vez.';
+      return;
+    }
+    if (title) title.textContent = files.length === 1 ? files[0].name : `${files.length} arquivos selecionados`;
+    if (hint) {
+      const names = files.slice(0, 3).map(file => file.name).join(' · ');
+      hint.textContent = files.length > 3 ? `${names} · +${files.length - 3}` : names;
+    }
+  }));
+
   // Password visibility
   $$('[data-password-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const input = document.getElementById(btn.dataset.passwordToggle);

@@ -65,6 +65,18 @@
               <p class="admin-description">{{ item.details }}</p>
               <div class="requester-line"><span>Solicitante</span><strong>{{ item.requester or 'Não informado' }}</strong></div>
               <div class="requester-line"><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
+              {% if item.attachments %}
+                <div class="admin-attachments">
+                  <span class="admin-attachments-title">📎 Documentos anexados</span>
+                  <div class="attachment-chips">
+                    {% for attachment in item.attachments %}
+                      <a class="attachment-chip" href="{{ url_for('download_request_attachment', attachment_id=attachment.id) }}" title="Baixar {{ attachment.original_name }}">
+                        <span>↧</span><strong>{{ attachment.original_name }}</strong>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
             </div>
             <div class="admin-project-actions">
               <form method="post" action="{{ url_for('approve_project', project_id=item.id) }}">
@@ -132,6 +144,18 @@
             <p class="admin-description">{{ item.details }}</p>
             <div class="requester-line"><span>Solicitante</span><strong>{{ item.requester or 'Não informado' }}</strong></div>
             <div class="requester-line"><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
+            {% if item.attachments %}
+              <div class="admin-attachments">
+                <span class="admin-attachments-title">📎 Documentos da solicitação</span>
+                <div class="attachment-chips">
+                  {% for attachment in item.attachments %}
+                    <a class="attachment-chip" href="{{ url_for('download_request_attachment', attachment_id=attachment.id) }}" title="Baixar {{ attachment.original_name }}">
+                      <span>↧</span><strong>{{ attachment.original_name }}</strong>
+                    </a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
             <div class="progress-track admin-progress"><span style="width: {{ item.progress }}%"></span></div>
 
             <form class="work-form" method="post" action="{{ url_for('update_project', project_id=item.id) }}">
