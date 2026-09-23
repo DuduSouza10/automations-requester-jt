@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Admin | Central de Automações{% endblock %}
+{% block body %}
+<div class="login-page">
+  <div class="login-card glass">
+    <a class="brand login-brand" href="{{ url_for('index') }}">
+      <span class="logo-wrap"><img src="https://upload.wikimedia.org/wikipedia/commons/0/01/J%26T_Express_logo.svg" alt="J&T Express" class="brand-logo"></span>
+      <span class="brand-copy"><strong>Central de Automações</strong><small>Acesso administrativo</small></span>
+    </a>
+    <div class="login-copy">
+      <span class="kicker">Área restrita</span>
+      <h1>Painel administrativo</h1>
+      <p>Use sua senha para aprovar solicitações, atualizar o desenvolvimento, concluir projetos e gerenciar notificações.</p>
+    </div>
+    <form method="post" class="login-form">
+      <label class="field">
+        <span>Senha de acesso</span>
+        <div class="password-field">
+          <input type="password" name="password" required autofocus placeholder="Digite sua senha" id="admin-password">
+          <button type="button" data-password-toggle="admin-password">Mostrar</button>
+        </div>
+      </label>
+      <button class="primary-button full" type="submit">Entrar no painel <span>→</span></button>
+    </form>
+    <a class="back-link" href="{{ url_for('index') }}">← Voltar para a central</a>
+  </div>
+</div>
+{% endblock %}

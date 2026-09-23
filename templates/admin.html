@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Admin | Controle de Automações{% endblock %}
+{% block body %}
+<div class="admin-shell">
+  <aside class="admin-sidebar glass">
+    <a class="brand admin-brand" href="{{ url_for('admin_dashboard') }}">
+      <span class="logo-wrap"><img src="https://upload.wikimedia.org/wikipedia/commons/0/01/J%26T_Express_logo.svg" alt="J&T Express" class="brand-logo"></span>
+      <span class="brand-copy"><strong>Admin</strong><small>Controle de automações</small></span>
+    </a>
+
+    <nav class="admin-nav">
+      <a href="#visao-geral" class="active"><span>⌂</span> Visão geral</a>
+      <a href="#solicitacoes"><span>◷</span> Solicitações <b>{{ pending|length }}</b></a>
+      <a href="#andamento"><span>⚙</span> Em andamento <b>{{ ongoing|length }}</b></a>
+      <a href="#criadas"><span>✓</span> Criadas <b>{{ created|length }}</b></a>
+      <a href="#notificacoes"><span>◉</span> Notificações {% if unread_count %}<b class="alert-count">{{ unread_count }}</b>{% endif %}</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <a class="ghost-button full" href="{{ url_for('index') }}">↗ Ver site público</a>
+      <form method="post" action="{{ url_for('admin_logout') }}">
+        <button class="logout-button" type="submit">Sair do admin</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <header class="admin-topbar" id="visao-geral">
+      <div>
+        <span class="kicker">Painel administrativo</span>
+        <h1>Controle das automações</h1>
+        <p>Aprove demandas, atualize o progresso e publique as entregas finais.</p>
+      </div>
+      <a class="notification-button" href="#notificacoes">◉ <span>Notificações</span>{% if unread_count %}<b>{{ unread_count }}</b>{% endif %}</a>
+    </header>
+
+    <section class="admin-metrics">
+      <article class="metric-card glass"><span class="metric-icon pending-bg">◷</span><div><strong>{{ pending|length }}</strong><small>Solicitações pendentes</small></div></article>
+      <article class="metric-card glass"><span class="metric-icon progress-bg">⚙</span><div><strong>{{ ongoing|length }}</strong><small>Em desenvolvimento</small></div></article>
+      <article class="metric-card glass"><span class="metric-icon done-bg">✓</span><div><strong>{{ created|length }}</strong><small>Automações criadas</small></div></article>
+      <article class="metric-card glass"><span class="metric-icon notice-bg">◉</span><div><strong>{{ unread_count }}</strong><small>Notificações novas</small></div></article>
+    </section>
+
+    <section class="admin-section" id="solicitacoes">
+      <div class="admin-section-head">
+        <div><span class="kicker">Aprovação</span><h2>Solicitações pendentes</h2><p>Analise a demanda e escolha se ela entra para desenvolvimento.</p></div>
+        <span class="status-pill pending">{{ pending|length }} pendentes</span>
+      </div>
+
+      <div class="admin-stack">
+        {% for item in pending %}
+          <article class="admin-project glass">
+            <div class="admin-project-main">
+              <div class="admin-project-top">
+                <div class="project-tags">
+                  <span class="type-badge">{{ item.creation_type }}</span>
+                  {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+                </div>
+                <time>{{ item.created_at|datetime_br }}</time>
+              </div>
+              <h3>{{ item.name }}</h3>
+              {% if item.source_type == 'change' and item.parent %}
+                <p class="linked-project">Alteração de <strong>{{ item.parent.name }}</strong> · versão atual v{{ item.parent.version }}</p>
+              {% endif %}
+              <p class="admin-description">{{ item.details }}</p>
+              <div class="requester-line"><span>Solicitante</span><strong>{{ item.requester or 'Não informado' }}</strong></div>
+              <div class="requester-line"><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
+            </div>
+            <div class="admin-project-actions">
+              <form method="post" action="{{ url_for('approve_project', project_id=item.id) }}">
+                <button class="primary-button full" type="submit">Aprovar solicitação</button>
+              </form>
+              <button class="ghost-button full" type="button" data-modal-open="edit-request-{{ item.id }}">Editar dados</button>
+              <button class="danger-outline full" type="button" data-modal-open="reject-{{ item.id }}">Recusar</button>
+            </div>
+          </article>
+
+          <div class="modal" id="edit-request-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Editar solicitação</span>
+              <h3>{{ item.name }}</h3>
+              <form method="post" action="{{ url_for('edit_project', project_id=item.id) }}">
+                <label class="field"><span>Nome da automação</span><input name="name" required maxlength="180" value="{{ item.name }}"></label>
+                <div class="form-grid two">
+                  <label class="field"><span>Nome do solicitante</span><input name="requester" required maxlength="120" value="{{ item.requester or '' }}"></label>
+                  <label class="field"><span>Setor</span><input name="department" required maxlength="120" value="{{ item.department or '' }}"></label>
+                </div>
+                <label class="field"><span>Tipo</span><select name="creation_type" required><option value="Robô" {% if item.creation_type == 'Robô' %}selected{% endif %}>Robô</option><option value="Dashboard" {% if item.creation_type == 'Dashboard' %}selected{% endif %}>Dashboard</option><option value="Automação" {% if item.creation_type == 'Automação' %}selected{% endif %}>Automação</option></select></label>
+                <label class="field"><span>Informações e objetivo</span><textarea name="details" rows="7" required>{{ item.details }}</textarea></label>
+                <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="primary-button" type="submit">Salvar dados</button></div>
+              </form>
+            </div>
+          </div>
+
+          <div class="modal" id="reject-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Recusar solicitação</span>
+              <h3>{{ item.name }}</h3>
+              <form method="post" action="{{ url_for('reject_project', project_id=item.id) }}">
+                <label class="field"><span>Motivo / observação</span><textarea name="reason" rows="5" placeholder="Opcional"></textarea></label>
+                <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Confirmar recusa</button></div>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state wide glass"><span>✓</span><strong>Fila limpa</strong><p>Não existem solicitações aguardando aprovação.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="admin-section" id="andamento">
+      <div class="admin-section-head">
+        <div><span class="kicker">Produção</span><h2>Automações em andamento</h2><p>Atualize o estágio e o percentual conforme o desenvolvimento avançar.</p></div>
+        <span class="status-pill progress">{{ ongoing|length }} ativas</span>
+      </div>
+
+      <div class="admin-stack">
+        {% for item in ongoing %}
+          <article class="work-card glass">
+            <div class="work-card-head">
+              <div>
+                <div class="project-tags"><span class="type-badge">{{ item.creation_type }}</span>{% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}</div>
+                <h3>{{ item.name }}</h3>
+                {% if item.source_type == 'change' and item.parent %}<p class="linked-project">Atualizando <strong>{{ item.parent.name }}</strong> · v{{ item.parent.version }}</p>{% endif %}
+              </div>
+              <span class="big-progress">{{ item.progress }}%</span>
+            </div>
+            <p class="admin-description">{{ item.details }}</p>
+            <div class="requester-line"><span>Solicitante</span><strong>{{ item.requester or 'Não informado' }}</strong></div>
+            <div class="requester-line"><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
+            <div class="progress-track admin-progress"><span style="width: {{ item.progress }}%"></span></div>
+
+            <form class="work-form" method="post" action="{{ url_for('update_project', project_id=item.id) }}">
+              <div class="form-grid status-grid">
+                <label class="field"><span>Etapa atual</span><input name="stage" maxlength="80" value="{{ item.stage }}" placeholder="Ex.: Desenvolvimento do backend"></label>
+                <label class="field"><span>Progresso (%)</span><input type="number" name="progress" min="0" max="99" value="{{ item.progress }}"></label>
+              </div>
+              <label class="field"><span>Atualização para quem acompanha</span><textarea name="admin_notes" rows="3" placeholder="Ex.: Integração concluída; iniciando testes.">{{ item.admin_notes or '' }}</textarea></label>
+              <div class="work-actions">
+                <button class="secondary-button" type="submit">Salvar progresso</button>
+                <button class="primary-button" type="button" data-modal-open="complete-{{ item.id }}">Concluir e publicar</button>
+              </div>
+            </form>
+          </article>
+
+          <div class="modal" id="complete-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel large glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Entrega final</span>
+              <h3>{% if item.source_type == 'change' %}Concluir alteração{% else %}Concluir automação{% endif %}</h3>
+              <p>{% if item.source_type == 'change' %}Os dados abaixo atualizarão a automação original e incrementarão a versão.{% else %}Anexe o arquivo final e registre o procedimento de uso para publicar a entrega.{% endif %}</p>
+              <form method="post" enctype="multipart/form-data" action="{{ url_for('complete_project', project_id=item.id) }}">
+                <label class="field file-field"><span>Arquivo final</span><input type="file" name="final_file"><small>{% if item.source_type == 'change' %}Opcional: deixe vazio para manter o arquivo atual.{% else %}Pode ser ZIP, EXE, XLSX, PDF, código-fonte ou outro arquivo da entrega.{% endif %}</small></label>
+                <label class="field"><span>Procedimento e passo a passo</span><textarea name="manual" rows="9" placeholder="1. Como instalar/abrir...&#10;2. Como configurar...&#10;3. Como executar...&#10;4. Observações e dependências..."></textarea></label>
+                <label class="field"><span>Observações finais</span><textarea name="final_notes" rows="3" placeholder="Notas adicionais da entrega"></textarea></label>
+                <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="primary-button" type="submit">Concluir e publicar</button></div>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state wide glass"><span>⚙</span><strong>Nenhum desenvolvimento ativo</strong><p>Aprove uma solicitação para iniciar o acompanhamento.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="admin-section" id="criadas">
+      <div class="admin-section-head">
+        <div><span class="kicker">Entregas</span><h2>Automações criadas</h2><p>Gerencie arquivos, manuais e histórico das soluções finalizadas.</p></div>
+        <span class="status-pill done">{{ created|length }} concluídas</span>
+      </div>
+
+      <div class="admin-stack">
+        {% for item in created %}
+          <article class="delivered-admin glass">
+            <div class="delivered-summary">
+              <div>
+                <div class="project-tags"><span class="type-badge">{{ item.creation_type }}</span><span class="version-badge">v{{ item.version }}</span></div>
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.details }}</p>
+                <div class="delivery-meta">
+                  <span>Solicitante: <strong>{{ item.requester or 'Não informado' }}</strong></span>
+                  <span>Setor: <strong>{{ item.department or 'Não informado' }}</strong></span>
+                  <span>Finalizada: <strong>{{ item.completed_at|datetime_br }}</strong></span>
+                  <span>Arquivo: <strong>{{ item.file_name or 'Não anexado' }}</strong></span>
+                  <span>Alterações: <strong>{{ item.change_requests.count() }}</strong></span>
+                </div>
+              </div>
+              <div class="delivered-buttons">
+                {% if item.file_path %}<a class="secondary-button" href="{{ url_for('download_file', public_id=item.public_id) }}">↓ Baixar</a>{% endif %}
+                <button class="ghost-button" type="button" data-collapse-toggle="edit-created-{{ item.id }}">Editar entrega</button>
+              </div>
+            </div>
+            <div class="collapse-panel" id="edit-created-{{ item.id }}">
+              <form method="post" enctype="multipart/form-data" action="{{ url_for('edit_created', project_id=item.id) }}">
+                <div class="form-grid two">
+                  <label class="field file-field"><span>Substituir arquivo final</span><input type="file" name="final_file"><small>Deixe vazio para manter o arquivo atual.</small></label>
+                  <label class="field"><span>Observações</span><textarea name="admin_notes" rows="4">{{ item.admin_notes or '' }}</textarea></label>
+                </div>
+                <label class="field"><span>Procedimento / passo a passo</span><textarea name="manual" rows="8">{{ item.manual or '' }}</textarea></label>
+                <div class="work-actions"><button class="secondary-button" type="submit">Salvar alterações</button><button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir registro</button></div>
+              </form>
+            </div>
+          </article>
+
+          <div class="modal" id="delete-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Exclusão</span><h3>Excluir {{ item.name }}?</h3><p>O registro e o arquivo anexado serão removidos. Essa ação não pode ser desfeita.</p>
+              <form method="post" action="{{ url_for('delete_project', project_id=item.id) }}"><div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Excluir definitivamente</button></div></form>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state wide glass"><span>⌁</span><strong>Nenhuma entrega publicada</strong><p>As automações concluídas aparecerão aqui.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="admin-section" id="notificacoes">
+      <div class="admin-section-head">
+        <div><span class="kicker">Central de alertas</span><h2>Notificações</h2><p>Novas solicitações e pedidos de alteração aparecem automaticamente aqui.</p></div>
+        {% if unread_count %}<form method="post" action="{{ url_for('read_all_notifications') }}"><button class="ghost-button" type="submit">Marcar todas como lidas</button></form>{% endif %}
+      </div>
+
+      <div class="notification-list glass">
+        {% for note in notifications %}
+          <article class="notification-item {% if not note.is_read %}unread{% endif %}">
+            <span class="notification-dot"></span>
+            <div><div class="notification-title"><strong>{{ note.title }}</strong><time>{{ note.created_at|datetime_br }}</time></div><p>{{ note.message }}</p></div>
+            {% if not note.is_read %}<form method="post" action="{{ url_for('read_notification', notification_id=note.id) }}"><button class="text-button" type="submit">Marcar como lida</button></form>{% endif %}
+          </article>
+        {% else %}
+          <div class="empty-state compact"><span>◉</span><strong>Sem notificações</strong><p>Os eventos importantes aparecerão aqui.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if rejected %}
+    <section class="admin-section rejected-section">
+      <details>
+        <summary>Ver solicitações recusadas ({{ rejected|length }})</summary>
+        <div class="rejected-list">
+          {% for item in rejected %}<div><strong>{{ item.name }}</strong><span>{{ item.updated_at|date_br }}</span><p>{{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</p><p>{{ item.admin_notes or 'Sem motivo informado.' }}</p></div>{% endfor %}
+        </div>
+      </details>
+    </section>
+    {% endif %}
+
+    <footer class="site-footer admin-footer"><span>J&T Express · Central de Automações</span><span>Developed by: Eduardo Rodrigues</span></footer>
+  </main>
+</div>
+{% endblock %}

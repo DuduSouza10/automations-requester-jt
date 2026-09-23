@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}J&T | Central de Automações{% endblock %}
+{% block body %}
+<div class="app-shell public-shell">
+  <header class="topbar glass">
+    <a class="brand" href="{{ url_for('index') }}">
+      <span class="logo-wrap">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/0/01/J%26T_Express_logo.svg" alt="J&T Express" class="brand-logo">
+      </span>
+      <span class="brand-copy">
+        <strong>Central de Automações</strong>
+        <small>Solicitações, desenvolvimento e entregas</small>
+      </span>
+    </a>
+    <div class="top-actions">
+      <a class="ghost-button" href="{{ url_for('admin_login') }}">
+        <span class="icon">⌘</span> Painel admin
+      </a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <span class="eyebrow">TECNOLOGIA · AUTOMAÇÃO · DADOS</span>
+      <h1>Uma central única para acompanhar cada automação.</h1>
+      <p>Envie uma necessidade, acompanhe o desenvolvimento em tempo real e acesse os arquivos e instruções das soluções já concluídas.</p>
+    </div>
+    <div class="hero-stats glass">
+      <div><strong>{{ pending|length }}</strong><span>Pendentes</span></div>
+      <div><strong>{{ ongoing|length }}</strong><span>Em andamento</span></div>
+      <div><strong>{{ created|length }}</strong><span>Concluídas</span></div>
+    </div>
+  </section>
+
+  <nav class="section-tabs glass" data-tabs>
+    <a href="#solicitacoes" class="tab-link active" data-tab-link="solicitacoes"><span>01</span> Solicitações</a>
+    <a href="#andamento" class="tab-link" data-tab-link="andamento"><span>02</span> Em andamento</a>
+    <a href="#criadas" class="tab-link" data-tab-link="criadas"><span>03</span> Automações criadas</a>
+  </nav>
+
+  <main>
+    <section id="solicitacoes" class="page-section tab-section active" data-tab-section="solicitacoes">
+      <div class="section-heading">
+        <div>
+          <span class="kicker">Nova demanda</span>
+          <h2>Solicitar automação</h2>
+          <p>Descreva o que precisa ser criado. Toda nova solicitação entra como pendente até aprovação.</p>
+        </div>
+        <span class="status-pill pending">{{ pending|length }} aguardando</span>
+      </div>
+
+      <div class="request-layout">
+        <form class="form-card glass" method="post" action="{{ url_for('create_request') }}">
+          <label class="field">
+            <span>Nome da automação *</span>
+            <input name="name" maxlength="180" required placeholder="Ex.: Monitoramento diário de SLA">
+          </label>
+
+          <div class="form-grid two">
+            <label class="field">
+              <span>Seu nome *</span>
+              <input name="requester" maxlength="120" required placeholder="Ex.: João da Silva">
+            </label>
+            <label class="field">
+              <span>Setor *</span>
+              <input name="department" maxlength="120" required placeholder="Ex.: Operações Regional 03">
+            </label>
+          </div>
+
+          <fieldset class="field">
+            <legend>Tipo de criação *</legend>
+            <div class="type-selector">
+              <label class="type-option">
+                <input type="radio" name="creation_type" value="Robô" required>
+                <span class="type-card"><b>🤖</b><strong>Robô</strong><small>Execução automática e rotinas.</small></span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="creation_type" value="Dashboard" required>
+                <span class="type-card"><b>▦</b><strong>Dashboard</strong><small>Indicadores, filtros e análises.</small></span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="creation_type" value="Automação" required>
+                <span class="type-card"><b>⚡</b><strong>Automação</strong><small>Integrações e processos automáticos.</small></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="field">
+            <span>Informações e objetivo *</span>
+            <textarea name="details" rows="7" required placeholder="Explique o processo atual, o resultado esperado, sistemas envolvidos, regras e qualquer informação importante..."></textarea>
+            <small class="field-help">Quanto mais contexto, melhor o planejamento da solução.</small>
+          </label>
+
+          <div class="form-footer">
+            <span class="privacy-note">A solicitação será registrada como <b>Pendente</b>.</span>
+            <button class="primary-button" type="submit">Enviar solicitação <span>→</span></button>
+          </div>
+        </form>
+
+        <aside class="queue-card glass">
+          <div class="card-title-row">
+            <div>
+              <span class="kicker">Fila atual</span>
+              <h3>Solicitações pendentes</h3>
+            </div>
+          </div>
+          <div class="queue-list">
+            {% for item in pending %}
+              <article class="queue-item">
+                <div class="queue-top">
+                  <span class="type-badge">{{ item.creation_type }}</span>
+                  {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+                  <time>{{ item.created_at|date_br }}</time>
+                </div>
+                <h4>{{ item.name }}</h4>
+                <p>{{ item.details }}</p>
+                {% if item.requester %}<small>Solicitante: {{ item.requester }}{% if item.department %} · {{ item.department }}{% endif %}</small>{% endif %}
+              </article>
+            {% else %}
+              <div class="empty-state compact">
+                <span>✓</span>
+                <strong>Nenhuma pendência agora</strong>
+                <p>As novas solicitações aparecerão aqui.</p>
+              </div>
+            {% endfor %}
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="andamento" class="page-section tab-section" data-tab-section="andamento">
+      <div class="section-heading">
+        <div>
+          <span class="kicker">Execução</span>
+          <h2>Automações em andamento</h2>
+          <p>Acompanhe etapa, progresso e atualizações do desenvolvimento.</p>
+        </div>
+        <span class="status-pill progress">{{ ongoing|length }} em produção</span>
+      </div>
+
+      <div class="project-grid">
+        {% for item in ongoing %}
+          <article class="project-card glass">
+            <div class="project-card-head">
+              <div class="project-icon">{% if item.creation_type == 'Robô' %}🤖{% elif item.creation_type == 'Dashboard' %}▦{% else %}⚡{% endif %}</div>
+              <div class="project-tags">
+                <span class="type-badge">{{ item.creation_type }}</span>
+                {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+              </div>
+            </div>
+            <h3>{{ item.name }}</h3>
+            <p class="project-description">{{ item.details }}</p>
+            {% if item.source_type == 'change' and item.parent %}
+              <p class="linked-project">↳ Vinculada a: <strong>{{ item.parent.name }}</strong></p>
+            {% endif %}
+            <div class="progress-block">
+              <div class="progress-label"><strong>{{ item.stage }}</strong><span>{{ item.progress }}%</span></div>
+              <div class="progress-track"><span style="width: {{ item.progress }}%"></span></div>
+            </div>
+            {% if item.admin_notes %}
+              <div class="update-note"><span>Última atualização</span><p>{{ item.admin_notes }}</p></div>
+            {% endif %}
+            <div class="project-meta">
+              <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
+              <span>Solicitado em {{ item.created_at|date_br }}</span>
+              <span>Atualizado {{ item.updated_at|datetime_br }}</span>
+            </div>
+          </article>
+        {% else %}
+          <div class="empty-state wide glass">
+            <span>⚙</span>
+            <strong>Nenhuma automação em andamento</strong>
+            <p>Quando uma solicitação for aprovada, ela aparecerá aqui com o progresso de desenvolvimento.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section id="criadas" class="page-section tab-section" data-tab-section="criadas">
+      <div class="section-heading">
+        <div>
+          <span class="kicker">Entregas</span>
+          <h2>Automações criadas</h2>
+          <p>Baixe os arquivos finais, consulte o passo a passo e solicite ajustes quando necessário.</p>
+        </div>
+        <span class="status-pill done">{{ created|length }} entregues</span>
+      </div>
+
+      <div class="created-list">
+        {% for item in created %}
+          <article class="created-card glass">
+            <div class="created-main">
+              <div class="created-icon">✓</div>
+              <div class="created-copy">
+                <div class="created-title-row">
+                  <div>
+                    <div class="project-tags"><span class="type-badge">{{ item.creation_type }}</span><span class="version-badge">v{{ item.version }}</span></div>
+                    <h3>{{ item.name }}</h3>
+                  </div>
+                  <time>Finalizado em {{ item.completed_at|date_br }}</time>
+                </div>
+                <p class="project-description">{{ item.details }}</p>
+                <div class="history-line">Solicitado por {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</div>
+                {% if item.manual %}
+                  <details class="manual-box">
+                    <summary>Ver procedimento e passo a passo <span>⌄</span></summary>
+                    <div class="manual-content">{{ item.manual }}</div>
+                  </details>
+                {% else %}
+                  <div class="manual-empty">Procedimento ainda não informado.</div>
+                {% endif %}
+
+                {% if item.change_requests.count() > 0 %}
+                  <div class="history-line">{{ item.change_requests.count() }} solicitação(ões) de alteração registrada(s).</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="created-actions">
+              {% if item.file_path %}
+                <a class="secondary-button" href="{{ url_for('download_file', public_id=item.public_id) }}">↓ Baixar arquivo final</a>
+              {% else %}
+                <span class="file-missing">Sem arquivo anexado</span>
+              {% endif %}
+              <button class="primary-button slim" type="button" data-modal-open="change-{{ item.public_id }}">Solicitar alteração</button>
+            </div>
+          </article>
+
+          <div class="modal" id="change-{{ item.public_id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true" aria-labelledby="modal-title-{{ item.id }}">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Nova revisão</span>
+              <h3 id="modal-title-{{ item.id }}">Solicitar alteração</h3>
+              <p>Descreva o que precisa mudar em <strong>{{ item.name }}</strong>. O pedido voltará para a fila de solicitações.</p>
+              <form method="post" action="{{ url_for('request_change', public_id=item.public_id) }}">
+                <div class="form-grid two">
+                  <label class="field">
+                    <span>Seu nome *</span>
+                    <input name="requester" maxlength="120" required placeholder="Ex.: João da Silva">
+                  </label>
+                  <label class="field">
+                    <span>Setor *</span>
+                    <input name="department" maxlength="120" required placeholder="Ex.: Operações Regional 03">
+                  </label>
+                </div>
+                <label class="field">
+                  <span>Alterações necessárias *</span>
+                  <textarea name="change_details" rows="7" required placeholder="Informe os ajustes, correções ou novas funções desejadas..."></textarea>
+                </label>
+                <div class="modal-actions">
+                  <button class="ghost-button" type="button" data-modal-close>Cancelar</button>
+                  <button class="primary-button" type="submit">Enviar alteração</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state wide glass">
+            <span>⌁</span>
+            <strong>Nenhuma automação concluída ainda</strong>
+            <p>As entregas finalizadas ficarão disponíveis aqui para download e consulta.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>J&T Express · Central de Automações</span>
+    <span>Developed by: Eduardo Rodrigues</span>
+  </footer>
+</div>
+{% endblock %}
