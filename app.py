@@ -521,7 +521,7 @@ def read_notification(notification_id):
     notification = Notification.query.get_or_404(notification_id)
     notification.is_read = True
     db.session.commit()
-    return redirect(url_for("admin_dashboard") + "#notificacoes")
+    return redirect(url_for("admin_dashboard") + "#notifications-modal")
 
 
 @app.post("/admin/notificacoes/ler-todas")
@@ -530,7 +530,7 @@ def read_all_notifications():
     Notification.query.filter_by(is_read=False).update({"is_read": True})
     db.session.commit()
     flash("Notificações marcadas como lidas.", "success")
-    return redirect(url_for("admin_dashboard") + "#notificacoes")
+    return redirect(url_for("admin_dashboard") + "#notifications-modal")
 
 
 @app.get("/health")

@@ -13,7 +13,7 @@
       <a href="#solicitacoes"><span>◷</span> Solicitações <b>{{ pending|length }}</b></a>
       <a href="#andamento"><span>⚙</span> Em andamento <b>{{ ongoing|length }}</b></a>
       <a href="#criadas"><span>✓</span> Criadas <b>{{ created|length }}</b></a>
-      <a href="#notificacoes"><span>◉</span> Notificações {% if unread_count %}<b class="alert-count">{{ unread_count }}</b>{% endif %}</a>
+      <a href="#notifications-modal" data-modal-open="notifications-modal"><span>🔔</span> Notificações {% if unread_count %}<b class="alert-count">{{ unread_count }}</b>{% endif %}</a>
     </nav>
 
     <div class="sidebar-bottom">
@@ -31,7 +31,7 @@
         <h1>Controle das automações</h1>
         <p>Aprove demandas, atualize o progresso e publique as entregas finais.</p>
       </div>
-      <a class="notification-button" href="#notificacoes">◉ <span>Notificações</span>{% if unread_count %}<b>{{ unread_count }}</b>{% endif %}</a>
+      <a class="notification-button" href="#notifications-modal" data-modal-open="notifications-modal">🔔 <span>Notificações</span>{% if unread_count %}<b>{{ unread_count }}</b>{% endif %}</a>
     </header>
 
     <section class="admin-metrics">
@@ -245,24 +245,68 @@
       </div>
     </section>
 
-    <section class="admin-section" id="notificacoes">
-      <div class="admin-section-head">
-        <div><span class="kicker">Central de alertas</span><h2>Notificações</h2><p>Novas solicitações e pedidos de alteração aparecem automaticamente aqui.</p></div>
-        {% if unread_count %}<form method="post" action="{{ url_for('read_all_notifications') }}"><button class="ghost-button" type="submit">Marcar todas como lidas</button></form>{% endif %}
-      </div>
+    <div class="modal notification-modal" id="notifications-modal" aria-hidden="true">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-panel notification-modal-panel" role="dialog" aria-modal="true" aria-labelledby="notifications-title">
+        <button class="modal-x notification-modal-x" type="button" data-modal-close aria-label="Fechar notificações">×</button>
 
-      <div class="notification-list glass">
-        {% for note in notifications %}
-          <article class="notification-item {% if not note.is_read %}unread{% endif %}">
-            <span class="notification-dot"></span>
-            <div><div class="notification-title"><strong>{{ note.title }}</strong><time>{{ note.created_at|datetime_br }}</time></div><p>{{ note.message }}</p></div>
-            {% if not note.is_read %}<form method="post" action="{{ url_for('read_notification', notification_id=note.id) }}"><button class="text-button" type="submit">Marcar como lida</button></form>{% endif %}
-          </article>
-        {% else %}
-          <div class="empty-state compact"><span>◉</span><strong>Sem notificações</strong><p>Os eventos importantes aparecerão aqui.</p></div>
-        {% endfor %}
+        <div class="notification-modal-header">
+          <div class="notification-modal-heading">
+            <span class="notification-modal-icon">🔔</span>
+            <div>
+              <span class="kicker">Central de alertas</span>
+              <h3 id="notifications-title">Notificações</h3>
+              <p>Novas solicitações e pedidos de alteração aparecem aqui.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="notification-modal-toolbar">
+          <div class="notification-summary">
+            {% if unread_count %}
+              <span class="notification-summary-dot"></span>
+              <strong>{{ unread_count }}</strong>
+              <span>{% if unread_count == 1 %}notificação nova{% else %}notificações novas{% endif %}</span>
+            {% else %}
+              <span class="notification-summary-dot is-clear"></span>
+              <span>Tudo em dia</span>
+            {% endif %}
+          </div>
+          {% if unread_count %}
+            <form method="post" action="{{ url_for('read_all_notifications') }}">
+              <button class="ghost-button compact-button" type="submit">Marcar todas como lidas</button>
+            </form>
+          {% endif %}
+        </div>
+
+        <div class="notification-modal-scroll">
+          {% for note in notifications %}
+            <article class="notification-item notification-modal-item {% if not note.is_read %}unread{% endif %}">
+              <span class="notification-dot"></span>
+              <div class="notification-copy">
+                <div class="notification-title">
+                  <strong>{{ note.title }}</strong>
+                  <time>{{ note.created_at|datetime_br }}</time>
+                </div>
+                <p>{{ note.message }}</p>
+                {% if not note.is_read %}<span class="notification-new-label">Nova</span>{% endif %}
+              </div>
+              {% if not note.is_read %}
+                <form method="post" action="{{ url_for('read_notification', notification_id=note.id) }}">
+                  <button class="text-button" type="submit">Marcar como lida</button>
+                </form>
+              {% endif %}
+            </article>
+          {% else %}
+            <div class="empty-state notification-empty">
+              <span>🔔</span>
+              <strong>Nenhuma notificação</strong>
+              <p>Quando houver uma nova solicitação ou alteração, ela aparecerá aqui.</p>
+            </div>
+          {% endfor %}
+        </div>
       </div>
-    </section>
+    </div>
 
     {% if rejected %}
     <section class="admin-section rejected-section">

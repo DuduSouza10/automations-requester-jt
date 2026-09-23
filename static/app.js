@@ -38,12 +38,24 @@
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
+    if (modal.id && location.hash === `#${modal.id}`) {
+      history.replaceState(null, '', `${location.pathname}${location.search}`);
+    }
   }
-  $$('[data-modal-open]').forEach(btn => btn.addEventListener('click', () => openModal(btn.dataset.modalOpen)));
+  $$('[data-modal-open]').forEach(btn => btn.addEventListener('click', e => {
+    e.preventDefault();
+    openModal(btn.dataset.modalOpen);
+  }));
   $$('[data-modal-close]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal'))));
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal($('.modal.open'));
   });
+
+  // Reopen a modal after a server-side action redirects back to its hash.
+  const hashModalId = location.hash.replace('#', '');
+  if (hashModalId && document.getElementById(hashModalId)?.classList.contains('modal')) {
+    openModal(hashModalId);
+  }
 
   // Collapsible editor panels
   $$('[data-collapse-toggle]').forEach(btn => btn.addEventListener('click', () => {
