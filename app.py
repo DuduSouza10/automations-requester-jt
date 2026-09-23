@@ -27,13 +27,58 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "change-me-in-railway")
 app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "100")) * 1024 * 1024
 
-raw_db_url = os.getenv("DATABASE_URL", "sqlite:///automation_control.db")
-if raw_db_url.startswith("postgres://"):
-    raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
+def resolve_database_url():
+    """Resolve a persistent database URL. Railway must never silently use SQLite."""
+    database_url = (os.getenv("DATABASE_URL") or "").strip()
+
+    # Railway may expose the individual PG* variables instead of DATABASE_URL.
+    if not database_url:
+        pg_host = (os.getenv("PGHOST") or "").strip()
+        pg_port = (os.getenv("PGPORT") or "5432").strip()
+        pg_user = (os.getenv("PGUSER") or "").strip()
+        pg_password = (os.getenv("PGPASSWORD") or "").strip()
+        pg_database = (os.getenv("PGDATABASE") or "").strip()
+        if pg_host and pg_user and pg_password and pg_database:
+            from urllib.parse import quote_plus
+            database_url = (
+                f"postgresql://{quote_plus(pg_user)}:{quote_plus(pg_password)}"
+                f"@{pg_host}:{pg_port}/{quote_plus(pg_database)}"
+            )
+
+    # Use psycopg 3 explicitly. Railway commonly supplies postgres:// or postgresql://.
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgres://"):]
+    elif database_url.startswith("postgresql://"):
+        database_url = "postgresql+psycopg://" + database_url[len("postgresql://"):]
+
+    if database_url:
+        return database_url, "postgresql"
+
+    # Local development can still use SQLite. In Railway, refusing to boot is
+    # intentional: an ephemeral SQLite database would be wiped on redeploy.
+    if os.getenv("RAILWAY_PROJECT_ID") or os.getenv("RAILWAY_ENVIRONMENT_ID"):
+        raise RuntimeError(
+            "Banco persistente nao configurado. Adicione PostgreSQL ao projeto Railway "
+            "e defina DATABASE_URL no servico web como referencia para "
+            "${{Postgres.DATABASE_URL}}. O app nao usara SQLite temporario no Railway."
+        )
+
+    local_db = BASE_DIR / "automation_control.db"
+    return f"sqlite:///{local_db.as_posix()}", "sqlite"
+
+
+raw_db_url, DATABASE_BACKEND = resolve_database_url()
 app.config["SQLALCHEMY_DATABASE_URI"] = raw_db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
+}
 
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(BASE_DIR / "uploads"))).resolve()
+# On Railway, default file storage points at /data. Mount a Railway Volume there
+# so request attachments and final files survive deployments as well.
+default_upload_dir = "/data/uploads" if os.getenv("RAILWAY_PROJECT_ID") else str(BASE_DIR / "uploads")
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", default_upload_dir)).resolve()
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "142723")
 
@@ -42,7 +87,7 @@ db = SQLAlchemy(app)
 
 @event.listens_for(Engine, "connect")
 def enable_sqlite_foreign_keys(dbapi_connection, connection_record):
-    if raw_db_url.startswith("sqlite"):
+    if DATABASE_BACKEND == "sqlite":
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -647,7 +692,19 @@ def read_all_notifications():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}, 200
+    try:
+        db.session.execute(text("SELECT 1"))
+        db.session.rollback()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Healthcheck: falha ao consultar o banco")
+        return {"status": "error", "database": DATABASE_BACKEND}, 503
+
+    return {
+        "status": "ok",
+        "database": DATABASE_BACKEND,
+        "persistent_database": DATABASE_BACKEND == "postgresql",
+    }, 200
 
 
 @app.errorhandler(404)
