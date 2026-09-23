@@ -147,10 +147,14 @@
                 <div class="queue-top">
                   <span class="type-badge">{{ item.creation_type }}</span>
                   {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+                  {% if item.resubmission_count %}<span class="resubmitted-badge">↻ Reenviada</span>{% endif %}
                   <time>{{ item.created_at|date_br }}</time>
                 </div>
                 <h4>{{ item.name }}</h4>
                 <p>{{ item.details }}</p>
+                {% if item.resubmission_count and item.rejection_reason %}
+                  <div class="resubmitted-note"><strong>Revisada após recusa</strong><span>{{ item.rejection_reason }}</span></div>
+                {% endif %}
                 <div class="queue-meta">
                   {% if item.requester %}<small>Solicitante: {{ item.requester }}{% if item.department %} · {{ item.department }}{% endif %}</small>{% endif %}
                   {% if item.attachments %}<small class="attachment-count">📎 {{ item.attachments|length }} documento{% if item.attachments|length != 1 %}s{% endif %}</small>{% endif %}
@@ -252,8 +256,73 @@
               <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
               <span>Solicitado em {{ item.created_at|date_br }}</span>
               <span>Recusado em {{ (item.rejected_at or item.updated_at)|datetime_br }}</span>
+              {% if item.resubmission_count %}<span>{{ item.resubmission_count }} reenvio{% if item.resubmission_count != 1 %}s{% endif %} anterior{% if item.resubmission_count != 1 %}es{% endif %}</span>{% endif %}
+            </div>
+
+            <div class="rejected-card-actions">
+              <button class="primary-button full" type="button" data-modal-open="resubmit-{{ item.id }}">✏️ Editar e reenviar para aprovação</button>
             </div>
           </article>
+
+          <div class="modal" id="resubmit-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel large glass" role="dialog" aria-modal="true" aria-labelledby="resubmit-title-{{ item.id }}">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Revisar solicitação</span>
+              <h3 id="resubmit-title-{{ item.id }}">Editar e reenviar para aprovação</h3>
+              <p>Corrija os pontos indicados na recusa. Ao enviar, a solicitação volta para a fila de pendentes e o administrador recebe uma nova notificação.</p>
+
+              <div class="rejection-reason resubmit-reason">
+                <span>Motivo da última recusa</span>
+                <p>{{ item.rejection_reason or item.admin_notes or 'Motivo não informado.' }}</p>
+              </div>
+
+              <form method="post" enctype="multipart/form-data" action="{{ url_for('resubmit_rejected_request', public_id=item.public_id) }}">
+                <label class="field"><span>Nome da automação *</span><input name="name" maxlength="180" required value="{{ item.name }}"></label>
+                <div class="form-grid two">
+                  <label class="field"><span>Seu nome *</span><input name="requester" maxlength="120" required value="{{ item.requester or '' }}"></label>
+                  <label class="field"><span>Setor *</span><input name="department" maxlength="120" required value="{{ item.department or '' }}"></label>
+                </div>
+                <label class="field"><span>Tipo de criação *</span>
+                  <select name="creation_type" required>
+                    <option value="Robô" {% if item.creation_type == 'Robô' %}selected{% endif %}>🤖 Robô</option>
+                    <option value="Dashboard" {% if item.creation_type == 'Dashboard' %}selected{% endif %}>📊 Dashboard</option>
+                    <option value="Automação" {% if item.creation_type == 'Automação' %}selected{% endif %}>⚡ Automação</option>
+                  </select>
+                </label>
+                <label class="field"><span>Informações e objetivo *</span><textarea name="details" rows="7" required>{{ item.details }}</textarea><small class="field-help">Ajuste o texto de acordo com o motivo da recusa.</small></label>
+
+                {% if item.attachments %}
+                  <div class="field">
+                    <span>Documentos já anexados</span>
+                    <div class="existing-attachment-list">
+                      {% for attachment in item.attachments %}
+                        <label class="existing-attachment-item">
+                          <span class="existing-attachment-name">📎 <strong>{{ attachment.original_name }}</strong></span>
+                          <span class="remove-attachment-check"><input type="checkbox" name="remove_attachments" value="{{ attachment.id }}"> Remover ao reenviar</span>
+                        </label>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endif %}
+
+                <label class="field attachment-field">
+                  <span>Adicionar novos documentos <em>Opcional</em></span>
+                  <span class="multi-upload">
+                    <span class="multi-upload-icon">📎</span>
+                    <span class="multi-upload-copy"><strong>Anexar novos documentos</strong><small>Você pode selecionar vários arquivos.</small></span>
+                    <span class="multi-upload-action">Escolher arquivos</span>
+                    <input type="file" name="documents" multiple>
+                  </span>
+                </label>
+
+                <div class="modal-actions">
+                  <button class="ghost-button" type="button" data-modal-close>Cancelar</button>
+                  <button class="primary-button" type="submit">↻ Salvar e reenviar para aprovação</button>
+                </div>
+              </form>
+            </div>
+          </div>
         {% else %}
           <div class="empty-state wide glass">
             <span>✓</span>

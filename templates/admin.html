@@ -57,6 +57,7 @@
                 <div class="project-tags">
                   <span class="type-badge">{{ item.creation_type }}</span>
                   {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+                  {% if item.resubmission_count %}<span class="resubmitted-badge">↻ Reenviada {{ item.resubmission_count }}x</span>{% endif %}
                 </div>
                 <time>{{ item.created_at|datetime_br }}</time>
               </div>
@@ -67,6 +68,9 @@
               <p class="admin-description">{{ item.details }}</p>
               <div class="requester-line"><span>Solicitante</span><strong>{{ item.requester or 'Não informado' }}</strong></div>
               <div class="requester-line"><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
+              {% if item.resubmission_count and item.rejection_reason %}
+                <div class="resubmitted-note admin-resubmitted-note"><strong>↻ Reenviada após recusa</strong><span>Último motivo: {{ item.rejection_reason }}</span>{% if item.resubmitted_at %}<small>Reenviada em {{ item.resubmitted_at|datetime_br }}</small>{% endif %}</div>
+              {% endif %}
               {% if item.attachments %}
                 <div class="admin-attachments">
                   <span class="admin-attachments-title">📎 Documentos anexados</span>
@@ -252,6 +256,7 @@
                 <div><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
                 <div><span>Tipo</span><strong>{{ item.creation_type }}</strong></div>
                 <div><span>Solicitado em</span><strong>{{ item.created_at|datetime_br }}</strong></div>
+                {% if item.resubmission_count %}<div><span>Reenvios anteriores</span><strong>{{ item.resubmission_count }}</strong></div>{% endif %}
               </div>
 
               {% if item.attachments %}

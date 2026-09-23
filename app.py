@@ -118,6 +118,8 @@ class Project(db.Model):
     admin_notes = db.Column(db.Text, nullable=True)
     rejection_reason = db.Column(db.Text, nullable=True)
     rejected_at = db.Column(db.DateTime, nullable=True)
+    resubmitted_at = db.Column(db.DateTime, nullable=True)
+    resubmission_count = db.Column(db.Integer, nullable=False, default=0)
 
     manual = db.Column(db.Text, nullable=True)
     file_name = db.Column(db.String(255), nullable=True)
@@ -159,6 +161,20 @@ class RequestAttachment(db.Model):
     )
 
 
+class ProjectReviewEvent(db.Model):
+    __tablename__ = "project_review_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = db.Column(db.String(30), nullable=False)  # rejected | resubmitted
+    note = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=now_local)
+    project = db.relationship(
+        "Project",
+        backref=db.backref("review_events", cascade="all, delete-orphan", lazy="select")
+    )
+
+
 def ensure_schema_columns():
     """Small deploy-safe migration for databases created by older project versions."""
     inspector = inspect(db.engine)
@@ -170,6 +186,10 @@ def ensure_schema_columns():
         additions.append("ALTER TABLE projects ADD COLUMN rejection_reason TEXT")
     if "rejected_at" not in columns:
         additions.append("ALTER TABLE projects ADD COLUMN rejected_at TIMESTAMP")
+    if "resubmitted_at" not in columns:
+        additions.append("ALTER TABLE projects ADD COLUMN resubmitted_at TIMESTAMP")
+    if "resubmission_count" not in columns:
+        additions.append("ALTER TABLE projects ADD COLUMN resubmission_count INTEGER NOT NULL DEFAULT 0")
 
     if additions:
         with db.engine.begin() as connection:
@@ -396,6 +416,91 @@ def request_change(public_id):
     return redirect(url_for("index") + "#solicitacoes")
 
 
+@app.post("/solicitacoes/<public_id>/reenviar")
+def resubmit_rejected_request(public_id):
+    project = Project.query.filter_by(public_id=public_id).first()
+    if not project:
+        flash("Essa solicitação não foi encontrada. A página foi atualizada.", "error")
+        return redirect(url_for("index") + "#recusadas")
+
+    if project.status != "rejected":
+        flash("Essa solicitação não está mais recusada. Consulte o status atual na central.", "error")
+        return redirect(url_for("index"))
+
+    name = request.form.get("name", "").strip()
+    details = request.form.get("details", "").strip()
+    creation_type = request.form.get("creation_type", "").strip()
+    requester = request.form.get("requester", "").strip()
+    department = request.form.get("department", "").strip()
+    documents = request.files.getlist("documents")
+    remove_ids = {value for value in request.form.getlist("remove_attachments") if value.isdigit()}
+
+    if not name or not details or not requester or not department or creation_type not in {"Robô", "Dashboard", "Automação"}:
+        flash("Preencha nome, solicitante, setor, objetivo e tipo corretamente antes de reenviar.", "error")
+        return redirect(url_for("index") + "#recusadas")
+
+    attachments_to_remove = [
+        attachment for attachment in list(project.attachments)
+        if str(attachment.id) in remove_ids
+    ]
+    old_files = [attachment.stored_name for attachment in attachments_to_remove]
+    new_attachments = []
+
+    try:
+        project.name = name[:180]
+        project.details = details
+        project.creation_type = creation_type
+        project.requester = requester[:120]
+        project.department = department[:120]
+        project.status = "pending"
+        project.stage = "Reenviada para aprovação"
+        project.progress = 0
+        project.approved_at = None
+        project.resubmitted_at = now_local()
+        project.resubmission_count = (project.resubmission_count or 0) + 1
+        project.updated_at = now_local()
+
+        for attachment in attachments_to_remove:
+            db.session.delete(attachment)
+
+        new_attachments = save_request_attachments(documents, project)
+        db.session.add(ProjectReviewEvent(
+            project=project,
+            event_type="resubmitted",
+            note="Solicitação editada pelo solicitante e reenviada para nova aprovação.",
+        ))
+        attachment_note = f" · {len(new_attachments)} novo(s) documento(s)" if new_attachments else ""
+        notify(
+            "Solicitação reenviada para aprovação",
+            f"{project.name} foi revisada por {project.requester} · {project.department} e voltou para a fila de aprovação{attachment_note}.",
+            project,
+        )
+        db.session.commit()
+    except (SQLAlchemyError, OSError):
+        db.session.rollback()
+        for attachment in new_attachments:
+            try:
+                candidate = UPLOAD_DIR / attachment.stored_name
+                if candidate.exists() and candidate.is_file():
+                    candidate.unlink(missing_ok=True)
+            except OSError:
+                pass
+        app.logger.exception("Falha ao reenviar a solicitação recusada %s", project.id)
+        flash("Não foi possível reenviar a solicitação. Ela continua recusada e nenhum dado foi perdido.", "error")
+        return redirect(url_for("index") + "#recusadas")
+
+    for stored_name in old_files:
+        try:
+            candidate = UPLOAD_DIR / stored_name
+            if candidate.exists() and candidate.is_file():
+                candidate.unlink(missing_ok=True)
+        except OSError:
+            app.logger.exception("Solicitação reenviada, mas não foi possível remover o anexo antigo %s", stored_name)
+
+    flash("Solicitação atualizada e reenviada para aprovação. Ela voltou para a fila de pendentes.", "success")
+    return redirect(url_for("index") + "#solicitacoes")
+
+
 @app.get("/arquivos/<public_id>")
 def download_file(public_id):
     project = Project.query.filter_by(public_id=public_id, status="completed", source_type="new").first_or_404()
@@ -558,6 +663,7 @@ def reject_project(project_id):
         project.rejection_reason = reason
         project.rejected_at = now_local()
         project.updated_at = now_local()
+        db.session.add(ProjectReviewEvent(project=project, event_type="rejected", note=reason))
         db.session.commit()
     except SQLAlchemyError:
         db.session.rollback()
