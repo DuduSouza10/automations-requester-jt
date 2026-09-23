@@ -116,6 +116,8 @@ class Project(db.Model):
     stage = db.Column(db.String(80), nullable=False, default="Aguardando aprovação")
     progress = db.Column(db.Integer, nullable=False, default=0)
     admin_notes = db.Column(db.Text, nullable=True)
+    rejection_reason = db.Column(db.Text, nullable=True)
+    rejected_at = db.Column(db.DateTime, nullable=True)
 
     manual = db.Column(db.Text, nullable=True)
     file_name = db.Column(db.String(255), nullable=True)
@@ -161,9 +163,18 @@ def ensure_schema_columns():
     """Small deploy-safe migration for databases created by older project versions."""
     inspector = inspect(db.engine)
     columns = {column["name"] for column in inspector.get_columns("projects")}
+    additions = []
     if "department" not in columns:
+        additions.append("ALTER TABLE projects ADD COLUMN department VARCHAR(120)")
+    if "rejection_reason" not in columns:
+        additions.append("ALTER TABLE projects ADD COLUMN rejection_reason TEXT")
+    if "rejected_at" not in columns:
+        additions.append("ALTER TABLE projects ADD COLUMN rejected_at TIMESTAMP")
+
+    if additions:
         with db.engine.begin() as connection:
-            connection.execute(text("ALTER TABLE projects ADD COLUMN department VARCHAR(120)"))
+            for statement in additions:
+                connection.execute(text(statement))
 
 
 with app.app_context():
@@ -259,8 +270,13 @@ def date_br(value):
 def index():
     pending = Project.query.filter_by(status="pending").order_by(Project.created_at.desc()).all()
     ongoing = Project.query.filter_by(status="in_progress").order_by(Project.updated_at.desc()).all()
+    rejected = (
+        Project.query.filter_by(status="rejected")
+        .order_by(Project.rejected_at.desc(), Project.updated_at.desc())
+        .all()
+    )
     created = Project.query.filter_by(status="completed", source_type="new").order_by(Project.completed_at.desc()).all()
-    return render_template("index.html", pending=pending, ongoing=ongoing, created=created)
+    return render_template("index.html", pending=pending, ongoing=ongoing, rejected=rejected, created=created)
 
 
 @app.get("/api/live-state")
@@ -431,7 +447,11 @@ def admin_dashboard():
     pending = Project.query.filter_by(status="pending").order_by(Project.created_at.asc()).all()
     ongoing = Project.query.filter_by(status="in_progress").order_by(Project.updated_at.desc()).all()
     created = Project.query.filter_by(status="completed", source_type="new").order_by(Project.completed_at.desc()).all()
-    rejected = Project.query.filter_by(status="rejected").order_by(Project.updated_at.desc()).limit(30).all()
+    rejected = (
+        Project.query.filter_by(status="rejected")
+        .order_by(Project.rejected_at.desc(), Project.updated_at.desc())
+        .all()
+    )
     notifications = Notification.query.order_by(Notification.created_at.desc()).limit(50).all()
     unread_count = Notification.query.filter_by(is_read=False).count()
     return render_template(
@@ -465,7 +485,12 @@ def edit_project(project_id):
     project.updated_at = now_local()
     db.session.commit()
     flash("Dados da solicitação atualizados.", "success")
-    anchor = "#solicitacoes" if project.status == "pending" else "#andamento"
+    anchor = {
+        "pending": "#solicitacoes",
+        "in_progress": "#andamento",
+        "rejected": "#recusadas",
+        "completed": "#criadas",
+    }.get(project.status, "#solicitacoes")
     return redirect(url_for("admin_dashboard") + anchor)
 
 
@@ -510,15 +535,38 @@ def approve_project(project_id):
 @app.post("/admin/projetos/<int:project_id>/rejeitar")
 @admin_required
 def reject_project(project_id):
-    project = Project.query.get_or_404(project_id)
+    project = db.session.get(Project, project_id)
+    if not project:
+        flash("Essa solicitação não foi encontrada. A lista foi atualizada.", "error")
+        return admin_redirect("solicitacoes")
+
+    if project.status != "pending":
+        if project.status == "rejected":
+            flash("Essa solicitação já foi recusada.", "success")
+            return admin_redirect("recusadas")
+        flash("Somente solicitações pendentes podem ser recusadas.", "error")
+        return admin_redirect()
+
     reason = request.form.get("reason", "").strip()
-    project.status = "rejected"
-    project.stage = "Solicitação recusada"
-    project.admin_notes = reason or project.admin_notes
-    project.updated_at = now_local()
-    db.session.commit()
-    flash("Solicitação recusada.", "success")
-    return redirect(url_for("admin_dashboard"))
+    if not reason:
+        flash("Informe o motivo da recusa para que ele fique registrado junto da solicitação.", "error")
+        return admin_redirect("solicitacoes")
+
+    try:
+        project.status = "rejected"
+        project.stage = "Solicitação recusada"
+        project.rejection_reason = reason
+        project.rejected_at = now_local()
+        project.updated_at = now_local()
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception("Falha ao recusar a solicitação %s", project_id)
+        flash("Não foi possível recusar a solicitação. Ela foi mantida como pendente; tente novamente.", "error")
+        return admin_redirect("solicitacoes")
+
+    flash("Solicitação recusada e movida para Solicitações recusadas.", "success")
+    return admin_redirect("recusadas")
 
 
 @app.post("/admin/projetos/<int:project_id>/atualizar")
@@ -636,6 +684,7 @@ def delete_project(project_id):
     status_anchor = {
         "pending": "solicitacoes",
         "in_progress": "andamento",
+        "rejected": "recusadas",
         "completed": "criadas",
     }.get(project.status)
 

@@ -37,6 +37,7 @@
       <div class="hero-stats" data-live-region="public-stats">
         <div><span class="stat-icon">🕐</span><strong>{{ pending|length }}</strong><span>Pendentes</span></div>
         <div><span class="stat-icon">⚙️</span><strong>{{ ongoing|length }}</strong><span>Em andamento</span></div>
+        <div><span class="stat-icon">⛔</span><strong>{{ rejected|length }}</strong><span>Recusadas</span></div>
         <div><span class="stat-icon">✅</span><strong>{{ created|length }}</strong><span>Concluídas</span></div>
       </div>
       <div class="hero-flow">
@@ -55,7 +56,8 @@
   <nav class="section-tabs glass" data-tabs>
     <a href="#solicitacoes" class="tab-link active" data-tab-link="solicitacoes"><span>01</span> Solicitações</a>
     <a href="#andamento" class="tab-link" data-tab-link="andamento"><span>02</span> Em andamento</a>
-    <a href="#criadas" class="tab-link" data-tab-link="criadas"><span>03</span> Automações criadas</a>
+    <a href="#recusadas" class="tab-link" data-tab-link="recusadas"><span>03</span> Solicitações recusadas</a>
+    <a href="#criadas" class="tab-link" data-tab-link="criadas"><span>04</span> Automações criadas</a>
   </nav>
 
   <main>
@@ -209,6 +211,54 @@
             <span>⚙</span>
             <strong>Nenhuma automação em andamento</strong>
             <p>Quando uma solicitação for aprovada, ela aparecerá aqui com o progresso de desenvolvimento.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section id="recusadas" class="page-section tab-section" data-tab-section="recusadas">
+      <div class="section-heading">
+        <div>
+          <span class="kicker">Histórico de análise</span>
+          <h2>Solicitações recusadas</h2>
+          <p>Consulte as solicitações que não foram aprovadas e o motivo informado pelo administrador.</p>
+        </div>
+        <span class="status-pill rejected" data-live-region="public-rejected-count">{{ rejected|length }} recusada{% if rejected|length != 1 %}s{% endif %}</span>
+      </div>
+
+      <div class="rejected-public-grid" data-live-region="public-rejected-list">
+        {% for item in rejected %}
+          <article class="rejected-card glass">
+            <div class="rejected-card-head">
+              <div class="rejected-icon">⛔</div>
+              <div class="project-tags">
+                <span class="type-badge">{{ item.creation_type }}</span>
+                {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+                <span class="rejected-badge">Recusada</span>
+              </div>
+            </div>
+            <h3>{{ item.name }}</h3>
+            {% if item.source_type == 'change' and item.parent %}
+              <p class="linked-project">↳ Alteração vinculada a: <strong>{{ item.parent.name }}</strong></p>
+            {% endif %}
+            <p class="project-description">{{ item.details }}</p>
+
+            <div class="rejection-reason">
+              <span>Motivo da recusa</span>
+              <p>{{ item.rejection_reason or item.admin_notes or 'Motivo não informado.' }}</p>
+            </div>
+
+            <div class="project-meta rejected-meta">
+              <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
+              <span>Solicitado em {{ item.created_at|date_br }}</span>
+              <span>Recusado em {{ (item.rejected_at or item.updated_at)|datetime_br }}</span>
+            </div>
+          </article>
+        {% else %}
+          <div class="empty-state wide glass">
+            <span>✓</span>
+            <strong>Nenhuma solicitação recusada</strong>
+            <p>Quando uma solicitação for recusada, ela aparecerá aqui junto com o motivo da decisão.</p>
           </div>
         {% endfor %}
       </div>

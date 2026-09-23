@@ -12,6 +12,7 @@
       <a href="#visao-geral" class="active"><span>⌂</span> Visão geral</a>
       <a href="#solicitacoes"><span>◷</span> Solicitações <b data-live-region="admin-nav-pending">{{ pending|length }}</b></a>
       <a href="#andamento"><span>⚙</span> Em andamento <b data-live-region="admin-nav-ongoing">{{ ongoing|length }}</b></a>
+      <a href="#recusadas"><span>⛔</span> Recusadas <b data-live-region="admin-nav-rejected">{{ rejected|length }}</b></a>
       <a href="#criadas"><span>✓</span> Criadas <b data-live-region="admin-nav-created">{{ created|length }}</b></a>
       <a href="#notifications-modal" data-modal-open="notifications-modal"><span>🔔</span> Notificações <b class="alert-count" data-live-region="admin-nav-unread" {% if not unread_count %}hidden{% endif %}>{{ unread_count }}</b></a>
     </nav>
@@ -37,6 +38,7 @@
     <section class="admin-metrics" data-live-region="admin-metrics">
       <article class="metric-card glass"><span class="metric-icon pending-bg">◷</span><div><strong>{{ pending|length }}</strong><small>Solicitações pendentes</small></div></article>
       <article class="metric-card glass"><span class="metric-icon progress-bg">⚙</span><div><strong>{{ ongoing|length }}</strong><small>Em desenvolvimento</small></div></article>
+      <article class="metric-card glass"><span class="metric-icon rejected-bg">⛔</span><div><strong>{{ rejected|length }}</strong><small>Solicitações recusadas</small></div></article>
       <article class="metric-card glass"><span class="metric-icon done-bg">✓</span><div><strong>{{ created|length }}</strong><small>Automações criadas</small></div></article>
       <article class="metric-card glass"><span class="metric-icon notice-bg">◉</span><div><strong>{{ unread_count }}</strong><small>Notificações novas</small></div></article>
     </section>
@@ -114,7 +116,7 @@
               <span class="kicker">Recusar solicitação</span>
               <h3>{{ item.name }}</h3>
               <form method="post" action="{{ url_for('reject_project', project_id=item.id) }}">
-                <label class="field"><span>Motivo / observação</span><textarea name="reason" rows="5" placeholder="Opcional"></textarea></label>
+                <label class="field"><span>Motivo da recusa *</span><textarea name="reason" rows="5" required placeholder="Explique por que essa solicitação não foi aprovada..."></textarea><small class="field-help">Esse motivo ficará visível junto aos dados da solicitação na aba de recusadas.</small></label>
                 <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Confirmar recusa</button></div>
               </form>
             </div>
@@ -216,6 +218,80 @@
           </div>
         {% else %}
           <div class="empty-state wide glass"><span>⚙</span><strong>Nenhum desenvolvimento ativo</strong><p>Aprove uma solicitação para iniciar o acompanhamento.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="admin-section" id="recusadas">
+      <div class="admin-section-head">
+        <div><span class="kicker">Histórico de análise</span><h2>Solicitações recusadas</h2><p>Veja os dados completos da solicitação e o motivo registrado no momento da recusa.</p></div>
+        <span class="status-pill rejected" data-live-region="admin-rejected-count">{{ rejected|length }} recusada{% if rejected|length != 1 %}s{% endif %}</span>
+      </div>
+
+      <div class="admin-stack" data-live-region="admin-rejected-list">
+        {% for item in rejected %}
+          <article class="rejected-admin-card glass">
+            <div class="rejected-admin-main">
+              <div class="admin-project-top">
+                <div class="project-tags">
+                  <span class="type-badge">{{ item.creation_type }}</span>
+                  {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+                  <span class="rejected-badge">Recusada</span>
+                </div>
+                <time>{{ (item.rejected_at or item.updated_at)|datetime_br }}</time>
+              </div>
+
+              <h3>{{ item.name }}</h3>
+              {% if item.source_type == 'change' and item.parent %}
+                <p class="linked-project">Alteração de <strong>{{ item.parent.name }}</strong> · versão atual v{{ item.parent.version }}</p>
+              {% endif %}
+              <p class="admin-description">{{ item.details }}</p>
+
+              <div class="rejected-data-grid">
+                <div><span>Solicitante</span><strong>{{ item.requester or 'Não informado' }}</strong></div>
+                <div><span>Setor</span><strong>{{ item.department or 'Não informado' }}</strong></div>
+                <div><span>Tipo</span><strong>{{ item.creation_type }}</strong></div>
+                <div><span>Solicitado em</span><strong>{{ item.created_at|datetime_br }}</strong></div>
+              </div>
+
+              {% if item.attachments %}
+                <div class="admin-attachments">
+                  <span class="admin-attachments-title">📎 Documentos anexados</span>
+                  <div class="attachment-chips">
+                    {% for attachment in item.attachments %}
+                      <a class="attachment-chip" href="{{ url_for('download_request_attachment', attachment_id=attachment.id) }}" title="Baixar {{ attachment.original_name }}">
+                        <span>↧</span><strong>{{ attachment.original_name }}</strong>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+
+              <div class="rejection-reason admin-rejection-reason">
+                <span>Motivo da recusa</span>
+                <p>{{ item.rejection_reason or item.admin_notes or 'Motivo não informado.' }}</p>
+              </div>
+            </div>
+
+            <div class="rejected-admin-actions">
+              <button class="danger-outline full" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button>
+            </div>
+          </article>
+
+          <div class="modal" id="delete-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Excluir solicitação recusada</span>
+              <h3>Excluir {{ item.name }}?</h3>
+              <p>O registro da solicitação, o motivo da recusa e os documentos anexados serão removidos definitivamente.</p>
+              <form method="post" action="{{ url_for('delete_project', project_id=item.id) }}">
+                <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Excluir definitivamente</button></div>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state wide glass"><span>✓</span><strong>Nenhuma solicitação recusada</strong><p>As solicitações recusadas aparecerão aqui com todos os dados e o motivo da recusa.</p></div>
         {% endfor %}
       </div>
     </section>
@@ -334,39 +410,6 @@
           {% endfor %}
         </div>
       </div>
-    </div>
-
-    <div data-live-region="admin-rejected">
-    {% if rejected %}
-    <section class="admin-section rejected-section">
-      <details>
-        <summary>Ver solicitações recusadas ({{ rejected|length }})</summary>
-        <div class="rejected-list">
-          {% for item in rejected %}
-            <div>
-              <strong>{{ item.name }}</strong><span>{{ item.updated_at|date_br }}</span>
-              <p>{{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</p>
-              <p>{{ item.admin_notes or 'Sem motivo informado.' }}</p>
-              <button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button>
-            </div>
-
-            <div class="modal" id="delete-{{ item.id }}" aria-hidden="true">
-              <div class="modal-backdrop" data-modal-close></div>
-              <div class="modal-panel glass" role="dialog" aria-modal="true">
-                <button class="modal-x" type="button" data-modal-close>×</button>
-                <span class="kicker">Excluir solicitação</span>
-                <h3>Excluir {{ item.name }}?</h3>
-                <p>A solicitação recusada será removida definitivamente. Essa ação não pode ser desfeita.</p>
-                <form method="post" action="{{ url_for('delete_project', project_id=item.id) }}">
-                  <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Excluir definitivamente</button></div>
-                </form>
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-      </details>
-    </section>
-    {% endif %}
     </div>
 
     <footer class="site-footer admin-footer"><span>J&T Express · Central de Automações</span><span>Developed by: Eduardo Rodrigues</span></footer>
