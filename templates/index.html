@@ -34,7 +34,7 @@
         <span class="orbit-dot dot-two"></span>
         <img src="{{ url_for('static', filename='favicon.png') }}" alt="" class="hero-brand-mark">
       </div>
-      <div class="hero-stats">
+      <div class="hero-stats" data-live-region="public-stats">
         <div><span class="stat-icon">🕐</span><strong>{{ pending|length }}</strong><span>Pendentes</span></div>
         <div><span class="stat-icon">⚙️</span><strong>{{ ongoing|length }}</strong><span>Em andamento</span></div>
         <div><span class="stat-icon">✅</span><strong>{{ created|length }}</strong><span>Concluídas</span></div>
@@ -66,7 +66,7 @@
           <h2>Solicitar automação</h2>
           <p>Descreva o que precisa ser criado. Toda nova solicitação entra como pendente até aprovação.</p>
         </div>
-        <span class="status-pill pending">{{ pending|length }} aguardando</span>
+        <span class="status-pill pending" data-live-region="public-pending-count">{{ pending|length }} aguardando</span>
       </div>
 
       <div class="request-layout">
@@ -139,7 +139,7 @@
               <h3>Solicitações pendentes</h3>
             </div>
           </div>
-          <div class="queue-list">
+          <div class="queue-list" data-live-region="public-pending-list">
             {% for item in pending %}
               <article class="queue-item">
                 <div class="queue-top">
@@ -173,10 +173,10 @@
           <h2>Automações em andamento</h2>
           <p>Acompanhe etapa, progresso e atualizações do desenvolvimento.</p>
         </div>
-        <span class="status-pill progress">{{ ongoing|length }} em produção</span>
+        <span class="status-pill progress" data-live-region="public-ongoing-count">{{ ongoing|length }} em produção</span>
       </div>
 
-      <div class="project-grid">
+      <div class="project-grid" data-live-region="public-ongoing-list">
         {% for item in ongoing %}
           <article class="project-card glass">
             <div class="project-card-head">
@@ -221,10 +221,10 @@
           <h2>Automações criadas</h2>
           <p>Baixe os arquivos finais, consulte o passo a passo e solicite ajustes quando necessário.</p>
         </div>
-        <span class="status-pill done">{{ created|length }} entregues</span>
+        <span class="status-pill done" data-live-region="public-created-count">{{ created|length }} entregues</span>
       </div>
 
-      <div class="created-list">
+      <div class="created-list" data-live-region="public-created-list">
         {% for item in created %}
           <article class="created-card glass">
             <div class="created-main">

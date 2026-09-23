@@ -6,7 +6,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from flask import (
-    Flask, abort, flash, redirect, render_template, request,
+    Flask, abort, flash, jsonify, redirect, render_template, request,
     send_from_directory, session, url_for
 )
 from flask_sqlalchemy import SQLAlchemy
@@ -216,6 +216,49 @@ def index():
     ongoing = Project.query.filter_by(status="in_progress").order_by(Project.updated_at.desc()).all()
     created = Project.query.filter_by(status="completed", source_type="new").order_by(Project.completed_at.desc()).all()
     return render_template("index.html", pending=pending, ongoing=ongoing, created=created)
+
+
+@app.get("/api/live-state")
+def live_state():
+    """Cheap state fingerprint used by open pages to sync themselves without F5."""
+    pending_count = Project.query.filter_by(status="pending").count()
+    ongoing_count = Project.query.filter_by(status="in_progress").count()
+    created_count = Project.query.filter_by(status="completed", source_type="new").count()
+    rejected_count = Project.query.filter_by(status="rejected").count()
+    project_count = Project.query.count()
+
+    latest_project = (
+        Project.query
+        .order_by(Project.updated_at.desc(), Project.id.desc())
+        .with_entities(Project.updated_at, Project.id)
+        .first()
+    )
+    latest_project_stamp = latest_project[0].isoformat(timespec="microseconds") if latest_project and latest_project[0] else "0"
+    latest_project_id = latest_project[1] if latest_project else 0
+
+    public_token = ":".join(map(str, [
+        project_count, pending_count, ongoing_count, created_count, rejected_count,
+        latest_project_id, latest_project_stamp,
+    ]))
+
+    notification_count = Notification.query.count()
+    unread_count = Notification.query.filter_by(is_read=False).count()
+    latest_notification = (
+        Notification.query
+        .order_by(Notification.id.desc())
+        .with_entities(Notification.id)
+        .first()
+    )
+    latest_notification_id = latest_notification[0] if latest_notification else 0
+    admin_token = f"{public_token}:{notification_count}:{unread_count}:{latest_notification_id}"
+
+    response = jsonify({
+        "public_token": public_token,
+        "admin_token": admin_token,
+        "interval_ms": 1200,
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response
 
 
 @app.post("/solicitacoes")
