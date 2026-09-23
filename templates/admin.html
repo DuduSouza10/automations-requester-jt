@@ -84,6 +84,7 @@
               </form>
               <button class="ghost-button full" type="button" data-modal-open="edit-request-{{ item.id }}">Editar dados</button>
               <button class="danger-outline full" type="button" data-modal-open="reject-{{ item.id }}">Recusar</button>
+              <button class="danger-outline full" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button>
             </div>
           </article>
 
@@ -115,6 +116,19 @@
               <form method="post" action="{{ url_for('reject_project', project_id=item.id) }}">
                 <label class="field"><span>Motivo / observação</span><textarea name="reason" rows="5" placeholder="Opcional"></textarea></label>
                 <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Confirmar recusa</button></div>
+              </form>
+            </div>
+          </div>
+
+          <div class="modal" id="delete-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Excluir solicitação</span>
+              <h3>Excluir {{ item.name }}?</h3>
+              <p>A solicitação será removida definitivamente, incluindo os documentos anexados. Essa ação não pode ser desfeita.</p>
+              <form method="post" action="{{ url_for('delete_project', project_id=item.id) }}">
+                <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Excluir definitivamente</button></div>
               </form>
             </div>
           </div>
@@ -167,6 +181,7 @@
               <div class="work-actions">
                 <button class="secondary-button" type="submit">Salvar progresso</button>
                 <button class="primary-button" type="button" data-modal-open="complete-{{ item.id }}">Concluir e publicar</button>
+                <button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button>
               </div>
             </form>
           </article>
@@ -183,6 +198,19 @@
                 <label class="field"><span>Procedimento e passo a passo</span><textarea name="manual" rows="9" placeholder="1. Como instalar/abrir...&#10;2. Como configurar...&#10;3. Como executar...&#10;4. Observações e dependências..."></textarea></label>
                 <label class="field"><span>Observações finais</span><textarea name="final_notes" rows="3" placeholder="Notas adicionais da entrega"></textarea></label>
                 <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="primary-button" type="submit">Concluir e publicar</button></div>
+              </form>
+            </div>
+          </div>
+
+          <div class="modal" id="delete-{{ item.id }}" aria-hidden="true">
+            <div class="modal-backdrop" data-modal-close></div>
+            <div class="modal-panel glass" role="dialog" aria-modal="true">
+              <button class="modal-x" type="button" data-modal-close>×</button>
+              <span class="kicker">Excluir solicitação</span>
+              <h3>Excluir {{ item.name }}?</h3>
+              <p>Ela será removida do andamento e os documentos anexados também serão apagados. Essa ação não pode ser desfeita.</p>
+              <form method="post" action="{{ url_for('delete_project', project_id=item.id) }}">
+                <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Excluir definitivamente</button></div>
               </form>
             </div>
           </div>
@@ -226,7 +254,7 @@
                   <label class="field"><span>Observações</span><textarea name="admin_notes" rows="4">{{ item.admin_notes or '' }}</textarea></label>
                 </div>
                 <label class="field"><span>Procedimento / passo a passo</span><textarea name="manual" rows="8">{{ item.manual or '' }}</textarea></label>
-                <div class="work-actions"><button class="secondary-button" type="submit">Salvar alterações</button><button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir registro</button></div>
+                <div class="work-actions"><button class="secondary-button" type="submit">Salvar alterações</button><button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button></div>
               </form>
             </div>
           </article>
@@ -313,7 +341,27 @@
       <details>
         <summary>Ver solicitações recusadas ({{ rejected|length }})</summary>
         <div class="rejected-list">
-          {% for item in rejected %}<div><strong>{{ item.name }}</strong><span>{{ item.updated_at|date_br }}</span><p>{{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</p><p>{{ item.admin_notes or 'Sem motivo informado.' }}</p></div>{% endfor %}
+          {% for item in rejected %}
+            <div>
+              <strong>{{ item.name }}</strong><span>{{ item.updated_at|date_br }}</span>
+              <p>{{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</p>
+              <p>{{ item.admin_notes or 'Sem motivo informado.' }}</p>
+              <button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button>
+            </div>
+
+            <div class="modal" id="delete-{{ item.id }}" aria-hidden="true">
+              <div class="modal-backdrop" data-modal-close></div>
+              <div class="modal-panel glass" role="dialog" aria-modal="true">
+                <button class="modal-x" type="button" data-modal-close>×</button>
+                <span class="kicker">Excluir solicitação</span>
+                <h3>Excluir {{ item.name }}?</h3>
+                <p>A solicitação recusada será removida definitivamente. Essa ação não pode ser desfeita.</p>
+                <form method="post" action="{{ url_for('delete_project', project_id=item.id) }}">
+                  <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="danger-button" type="submit">Excluir definitivamente</button></div>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
         </div>
       </details>
     </section>

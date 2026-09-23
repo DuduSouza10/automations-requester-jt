@@ -11,6 +11,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event, inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine import Engine
 from werkzeug.utils import secure_filename
 
@@ -134,9 +135,20 @@ def admin_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if not session.get("admin_authenticated"):
+            # Nunca redireciona um POST protegido de volta para a propria rota POST.
+            # Isso evita cair em 404/405 depois de refazer o login com uma sessao expirada.
+            if request.method != "GET":
+                flash("Sua sessão administrativa expirou. Entre novamente e repita a ação; nenhum dado foi alterado.", "error")
+                return redirect(url_for("admin_login", next=url_for("admin_dashboard")))
             return redirect(url_for("admin_login", next=request.path))
         return view(*args, **kwargs)
     return wrapped
+
+
+def admin_redirect(anchor=None):
+    if anchor:
+        return redirect(url_for("admin_dashboard", _anchor=anchor))
+    return redirect(url_for("admin_dashboard"))
 
 
 def save_upload(file_storage, project):
@@ -372,18 +384,39 @@ def edit_project(project_id):
 @app.post("/admin/projetos/<int:project_id>/aprovar")
 @admin_required
 def approve_project(project_id):
-    project = Project.query.get_or_404(project_id)
+    # Nao usa get_or_404 aqui: uma tela desatualizada nunca deve jogar o admin
+    # para uma pagina 404 ao clicar em Aprovar.
+    project = db.session.get(Project, project_id)
+    if not project:
+        flash("Essa solicitação não foi encontrada. A lista foi atualizada; nenhum dado foi alterado.", "error")
+        return admin_redirect("solicitacoes")
+
     if project.status != "pending":
-        flash("Essa solicitação não está pendente.", "error")
-        return redirect(url_for("admin_dashboard"))
-    project.status = "in_progress"
-    project.stage = "Planejamento / análise"
-    project.progress = max(project.progress, 5)
-    project.approved_at = now_local()
-    project.updated_at = now_local()
-    db.session.commit()
-    flash(f"{project.name} foi aprovada e movida para Em andamento.", "success")
-    return redirect(url_for("admin_dashboard") + "#andamento")
+        if project.status == "in_progress":
+            flash("Essa solicitação já foi aprovada e está em andamento.", "success")
+            return admin_redirect("andamento")
+        if project.status == "completed":
+            flash("Essa solicitação já foi concluída.", "success")
+            return admin_redirect("criadas")
+        flash("Essa solicitação não está mais pendente.", "error")
+        return admin_redirect("solicitacoes")
+
+    project_name = project.name
+    try:
+        project.status = "in_progress"
+        project.stage = "Planejamento / análise"
+        project.progress = max(project.progress, 5)
+        project.approved_at = now_local()
+        project.updated_at = now_local()
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception("Falha ao aprovar a solicitação %s", project_id)
+        flash("Não foi possível aprovar a solicitação. Ela foi mantida como pendente; tente novamente.", "error")
+        return admin_redirect("solicitacoes")
+
+    flash(f"{project_name} foi aprovada e movida para Em andamento.", "success")
+    return admin_redirect("andamento")
 
 
 @app.post("/admin/projetos/<int:project_id>/rejeitar")
@@ -503,16 +536,52 @@ def edit_created(project_id):
 @app.post("/admin/projetos/<int:project_id>/excluir")
 @admin_required
 def delete_project(project_id):
-    project = Project.query.get_or_404(project_id)
+    # Exclusao disponivel em qualquer etapa. O banco e confirmado antes dos
+    # arquivos fisicos serem removidos, evitando deixar um registro quebrado
+    # caso ocorra erro de banco durante a operacao.
+    project = db.session.get(Project, project_id)
+    if not project:
+        flash("Essa solicitação já não existe. A lista foi atualizada.", "error")
+        return admin_redirect()
+
+    project_name = project.name
+    status_anchor = {
+        "pending": "solicitacoes",
+        "in_progress": "andamento",
+        "completed": "criadas",
+    }.get(project.status)
+
+    records = [project]
     if project.source_type == "new":
-        delete_project_file(project)
-        for child in project.change_requests.all():
-            delete_request_attachment_files(child)
-    delete_request_attachment_files(project)
-    db.session.delete(project)
-    db.session.commit()
-    flash("Registro excluído.", "success")
-    return redirect(url_for("admin_dashboard"))
+        records.extend(list(project.change_requests.all()))
+
+    files_to_remove = set()
+    for record in records:
+        if record.file_path:
+            files_to_remove.add(record.file_path)
+        for attachment in list(record.attachments):
+            if attachment.stored_name:
+                files_to_remove.add(attachment.stored_name)
+
+    try:
+        db.session.delete(project)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception("Falha ao excluir a solicitação %s", project_id)
+        flash("Não foi possível excluir a solicitação. Nenhum registro foi removido; tente novamente.", "error")
+        return admin_redirect(status_anchor)
+
+    for stored_name in files_to_remove:
+        try:
+            candidate = UPLOAD_DIR / stored_name
+            if candidate.exists() and candidate.is_file():
+                candidate.unlink(missing_ok=True)
+        except OSError:
+            app.logger.exception("Registro %s excluído, mas não foi possível remover o arquivo %s", project_id, stored_name)
+
+    flash(f"{project_name} foi excluída definitivamente.", "success")
+    return admin_redirect(status_anchor)
 
 
 @app.post("/admin/notificacoes/<int:notification_id>/ler")
@@ -536,6 +605,16 @@ def read_all_notifications():
 @app.get("/health")
 def health():
     return {"status": "ok"}, 200
+
+
+@app.errorhandler(404)
+def not_found(error):
+    # No painel administrativo, uma acao feita a partir de uma tela antiga
+    # deve voltar para o painel em vez de abandonar o usuario numa pagina 404.
+    if request.path.startswith("/admin") and session.get("admin_authenticated"):
+        flash("A ação solicitada não foi encontrada ou o registro já mudou. A tela foi atualizada e nenhum dado adicional foi alterado.", "error")
+        return admin_redirect(), 302
+    return error, 404
 
 
 @app.errorhandler(413)
