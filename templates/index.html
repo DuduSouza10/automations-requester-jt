@@ -26,10 +26,29 @@
       <h1>Uma central única para acompanhar cada automação.</h1>
       <p>Envie uma necessidade, acompanhe o desenvolvimento em tempo real e acesse os arquivos e instruções das soluções já concluídas.</p>
     </div>
-    <div class="hero-stats glass">
-      <div><strong>{{ pending|length }}</strong><span>Pendentes</span></div>
-      <div><strong>{{ ongoing|length }}</strong><span>Em andamento</span></div>
-      <div><strong>{{ created|length }}</strong><span>Concluídas</span></div>
+    <div class="hero-side">
+      <div class="hero-orbit" aria-hidden="true">
+        <span class="orbit-ring ring-one"></span>
+        <span class="orbit-ring ring-two"></span>
+        <span class="orbit-dot dot-one"></span>
+        <span class="orbit-dot dot-two"></span>
+        <img src="{{ url_for('static', filename='favicon.png') }}" alt="" class="hero-brand-mark">
+      </div>
+      <div class="hero-stats">
+        <div><span class="stat-icon">🕐</span><strong>{{ pending|length }}</strong><span>Pendentes</span></div>
+        <div><span class="stat-icon">⚙️</span><strong>{{ ongoing|length }}</strong><span>Em andamento</span></div>
+        <div><span class="stat-icon">✅</span><strong>{{ created|length }}</strong><span>Concluídas</span></div>
+      </div>
+      <div class="hero-flow">
+        <span class="flow-label">Fluxo da central</span>
+        <div class="flow-track">
+          <span class="hero-flow-step active"><i>1</i>Solicitar</span>
+          <span class="flow-line"></span>
+          <span class="hero-flow-step"><i>2</i>Acompanhar</span>
+          <span class="flow-line"></span>
+          <span class="hero-flow-step"><i>3</i>Baixar</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -52,6 +71,10 @@
 
       <div class="request-layout">
         <form class="form-card glass" method="post" action="{{ url_for('create_request') }}">
+          <div class="form-intro">
+            <div class="form-intro-icon">✨</div>
+            <div><span>Nova solicitação</span><strong>Conte o que você precisa automatizar</strong><small>Preencha os dados abaixo. Você poderá acompanhar o andamento por esta mesma central.</small></div>
+          </div>
           <label class="field">
             <span>Nome da automação *</span>
             <input name="name" maxlength="180" required placeholder="Ex.: Monitoramento diário de SLA">
@@ -73,15 +96,15 @@
             <div class="type-selector">
               <label class="type-option">
                 <input type="radio" name="creation_type" value="Robô" required>
-                <span class="type-card"><b class="type-mark">BOT</b><strong>Robô</strong><small>Execução automática e rotinas.</small></span>
+                <span class="type-card"><b class="type-emoji">🤖</b><span class="type-content"><strong>Robô</strong><small>Execução automática, tarefas repetitivas e rotinas.</small></span><i class="type-check">✓</i></span>
               </label>
               <label class="type-option">
                 <input type="radio" name="creation_type" value="Dashboard" required>
-                <span class="type-card"><b class="type-mark">BI</b><strong>Dashboard</strong><small>Indicadores, filtros e análises.</small></span>
+                <span class="type-card"><b class="type-emoji">📊</b><span class="type-content"><strong>Dashboard</strong><small>Indicadores, filtros, análises e visão gerencial.</small></span><i class="type-check">✓</i></span>
               </label>
               <label class="type-option">
                 <input type="radio" name="creation_type" value="Automação" required>
-                <span class="type-card"><b class="type-mark">AUTO</b><strong>Automação</strong><small>Integrações e processos automáticos.</small></span>
+                <span class="type-card"><b class="type-emoji">⚡</b><span class="type-content"><strong>Automação</strong><small>Integrações entre sistemas e processos automáticos.</small></span><i class="type-check">✓</i></span>
               </label>
             </div>
           </fieldset>
@@ -143,7 +166,7 @@
         {% for item in ongoing %}
           <article class="project-card glass">
             <div class="project-card-head">
-              <div class="project-icon">{% if item.creation_type == 'Robô' %}BOT{% elif item.creation_type == 'Dashboard' %}BI{% else %}AUTO{% endif %}</div>
+              <div class="project-icon">{% if item.creation_type == 'Robô' %}🤖{% elif item.creation_type == 'Dashboard' %}📊{% else %}⚡{% endif %}</div>
               <div class="project-tags">
                 <span class="type-badge">{{ item.creation_type }}</span>
                 {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
