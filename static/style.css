@@ -982,3 +982,291 @@ fieldset.field{margin-top:4px;margin-bottom:20px;}
 .remove-attachment-check{display:flex;align-items:center;gap:6px;flex:0 0 auto;font-size:8.5px;color:#b3181f;font-weight:750;cursor:pointer}
 .remove-attachment-check input{accent-color:#d71920}
 @media (max-width:640px){.existing-attachment-item{align-items:flex-start;flex-direction:column}.remove-attachment-check{min-height:32px}.rejected-card-actions .primary-button{white-space:normal;text-align:center}}
+
+/* Ajuste fino do hero - alinhamento dos indicadores + animacao J&T maior */
+@media (min-width:1181px){
+  .hero{
+    grid-template-columns:minmax(0,1.12fr) minmax(520px,.88fr);
+    gap:46px;
+  }
+  .hero-side{
+    min-height:470px;
+  }
+}
+
+.hero-orbit{
+  top:-58px;
+  right:50%;
+  width:340px;
+  height:340px;
+  transform:translateX(50%);
+}
+.hero-orbit:before{
+  inset:34px;
+  background:radial-gradient(circle,rgba(227,27,35,.30),rgba(227,27,35,.055) 58%,transparent 74%);
+  filter:blur(4px);
+}
+.ring-one{inset:18px;}
+.ring-two{inset:62px;}
+.hero-brand-mark{
+  width:182px;
+  height:182px;
+  border-radius:43px;
+  filter:drop-shadow(0 34px 38px rgba(0,0,0,.42));
+  animation:jtBrandFloat 4.2s ease-in-out infinite;
+}
+@keyframes jtBrandFloat{
+  0%,100%{transform:translateY(0) rotate(-5deg) scale(1)}
+  50%{transform:translateY(-9px) rotate(-2deg) scale(1.025)}
+}
+
+.hero-stats{
+  width:100%;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:11px;
+  align-items:stretch;
+}
+.hero-stats div{
+  min-height:124px;
+  padding:15px 10px 14px!important;
+  display:flex!important;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  text-align:center;
+}
+.hero-stats .stat-icon{
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  flex:0 0 36px;
+  margin:0 0 2px;
+  border-radius:12px;
+  background:rgba(255,255,255,.075);
+  border:1px solid rgba(255,255,255,.08);
+  font-size:19px;
+  line-height:1;
+}
+.hero-stats div strong{
+  display:block;
+  margin:0;
+  font-size:30px;
+  line-height:1;
+  min-height:30px;
+  color:#fff;
+}
+.hero-stats div>span:last-child{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:25px;
+  margin:0;
+  font-size:9.5px;
+  line-height:1.25;
+  text-align:center;
+  color:#c4c8cf;
+  font-weight:750;
+}
+
+@media(max-width:1180px){
+  .hero-side{
+    min-height:0;
+    padding-top:292px;
+  }
+  .hero-orbit{
+    display:grid;
+    top:-18px;
+    right:50%;
+    width:280px;
+    height:280px;
+  }
+  .hero-brand-mark{width:148px;height:148px;border-radius:36px;}
+  .hero-stats{width:100%;min-width:0;}
+}
+
+@media(max-width:860px){
+  .hero-side{padding-top:250px;}
+  .hero-orbit{display:grid;width:235px;height:235px;top:0;}
+  .hero-brand-mark{width:126px;height:126px;border-radius:31px;}
+  .ring-two{inset:50px;}
+  .hero-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+  .hero-stats div{min-height:112px;padding:13px 8px!important;}
+  .hero-stats .stat-icon{width:33px;height:33px;flex-basis:33px;font-size:18px;}
+  .hero-stats div strong{font-size:27px;}
+  .hero-stats div>span:last-child{font-size:8.8px;}
+}
+
+@media(max-width:620px){
+  .hero-side{padding-top:0;}
+  .hero-orbit{display:none;}
+  .hero-stats{grid-template-columns:1fr 1fr;gap:8px;}
+  .hero-stats div{
+    min-height:98px;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    padding:12px 10px!important;
+  }
+  .hero-stats .stat-icon{
+    width:31px!important;
+    height:31px!important;
+    flex:0 0 31px!important;
+    font-size:17px!important;
+  }
+  .hero-stats div strong{
+    font-size:25px!important;
+    min-height:25px;
+  }
+  .hero-stats div>span:last-child{
+    min-height:22px;
+    font-size:9px!important;
+    text-align:center;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .hero-brand-mark,.ring-one,.ring-two{animation:none!important;}
+}
+
+/* ========================================================================== */
+/* V6 - leitura maior + cards recolhiveis + entrega por link                 */
+/* ========================================================================== */
+
+/* Public site readability */
+.public-shell .brand-copy strong{font-size:16px;}
+.public-shell .brand-copy small{font-size:12px;}
+.public-shell .hero>div:first-child>p{font-size:17px;line-height:1.72;max-width:820px;}
+.public-shell .tab-link{font-size:13px;}
+.public-shell .section-heading p{font-size:15px;line-height:1.72;}
+.public-shell .kicker{font-size:11px;}
+.public-shell .status-pill{font-size:12px;font-weight:800;}
+.public-shell .form-intro span{font-size:10px;}
+.public-shell .form-intro strong{font-size:17px;}
+.public-shell .form-intro small{font-size:12.5px;}
+.public-shell .field>span,.public-shell .field legend{font-size:13px;font-weight:750;}
+.public-shell .field input,.public-shell .field textarea,.public-shell .field select{font-size:15px;line-height:1.5;}
+.public-shell .field-help,.public-shell .field small{font-size:11.5px;line-height:1.55;}
+.public-shell .type-content strong{font-size:16px;}
+.public-shell .type-content small{font-size:12.5px;line-height:1.5;}
+.public-shell .privacy-note{font-size:11.5px;}
+.public-shell .queue-item h4{font-size:15px;}
+.public-shell .queue-item p{font-size:12.5px;line-height:1.62;}
+.public-shell .queue-item small,.public-shell .queue-top time{font-size:10.5px;}
+.public-shell .project-description{font-size:14px;line-height:1.72;color:#626a76;white-space:pre-line;}
+.public-shell .project-meta{font-size:12px;line-height:1.55;}
+.public-shell .history-line{font-size:12px;}
+.public-shell .update-note span,.public-shell .rejection-reason>span{font-size:10.5px;font-weight:850;}
+.public-shell .update-note p,.public-shell .rejection-reason p{font-size:13.5px;line-height:1.62;}
+.public-shell .manual-box summary{font-size:12.5px;font-weight:800;}
+.public-shell .manual-content{font-size:13.5px;line-height:1.72;white-space:pre-line;}
+.public-shell .manual-empty,.public-shell .file-missing{font-size:12px;}
+.public-shell .primary-button,.public-shell .secondary-button,.public-shell .ghost-button,.public-shell .site-open-button{font-size:12.5px;}
+.public-shell .multi-upload-copy strong{font-size:13px;}
+.public-shell .multi-upload-copy small{font-size:11px;}
+.public-shell .multi-upload-action{font-size:11px;}
+
+/* Collapsible cards used in andamento / recusadas / concluidas */
+.expand-card{
+  border:1px solid #e1e5ea;
+  border-radius:22px;
+  background:linear-gradient(160deg,#fff,#fbfcfd);
+  box-shadow:0 15px 46px rgba(18,22,31,.065);
+  overflow:hidden;
+  transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease;
+}
+.expand-card:hover{border-color:#d4d8df;box-shadow:0 20px 56px rgba(18,22,31,.09);}
+.expand-card[open]{border-color:#d5d9e0;box-shadow:0 24px 64px rgba(18,22,31,.10);}
+.expand-card>summary{list-style:none;}
+.expand-card>summary::-webkit-details-marker{display:none;}
+.expand-summary{
+  min-height:104px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:22px;
+  padding:20px 22px;
+  cursor:pointer;
+  user-select:none;
+}
+.expand-summary:focus-visible{outline:3px solid rgba(227,27,35,.18);outline-offset:-3px;}
+.expand-summary-main{display:flex;align-items:center;gap:16px;min-width:0;flex:1;}
+.expand-summary-copy{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.expand-summary-copy>.project-tags{margin-bottom:1px;}
+.expand-summary-copy>strong{font-size:18px;line-height:1.25;color:#171a1f;letter-spacing:-.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.expand-summary-copy>small{font-size:11.5px;color:#7a818c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.expand-summary-side{display:flex;align-items:center;gap:12px;flex:0 0 auto;}
+.expand-chevron{
+  width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:#f3f4f6;border:1px solid #e7e9ed;color:#4a5059;font-size:16px;font-weight:900;
+  transition:transform .22s ease,background .22s ease;
+}
+.expand-card[open] .expand-chevron{transform:rotate(180deg);background:#fff0f1;color:var(--jt);border-color:#f4d7d9;}
+.project-icon.compact,.created-icon.compact,.rejected-icon.compact{width:52px;height:52px;flex:0 0 52px;border-radius:16px;font-size:22px;display:grid;place-items:center;}
+.rejected-icon.compact{background:#fff0f1;border:1px solid #f5d4d7;}
+.summary-progress-number{font-size:22px;font-weight:850;letter-spacing:-.04em;color:#1f2329;min-width:48px;text-align:right;}
+.summary-mini-progress{width:108px;height:7px;border-radius:999px;background:#e9ebef;overflow:hidden;}
+.summary-mini-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--jt),#ff5b62);}
+.summary-status-text{font-size:11px;color:#737a85;font-weight:750;}
+.expand-body{border-top:1px solid #eceef2;padding:22px 24px 24px;background:rgba(250,251,252,.72);}
+.expand-body>.project-description:first-child{margin-top:0;}
+.ongoing-expand .expand-body{border-top-color:#eceef2;}
+.rejected-expand .expand-body{border-top-color:#f0e5e6;}
+.created-expand .expand-body{border-top-color:#e8eeeB;}
+.project-grid,.rejected-public-grid,.created-list{display:grid;grid-template-columns:1fr;gap:13px;}
+
+.delivery-kind{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;font-size:10.5px;font-weight:850;white-space:nowrap;}
+.delivery-kind.web{background:#eaf8f2;border:1px solid #d5eee3;color:#117b52;}
+.delivery-kind.file{background:#eef4ff;border:1px solid #dce7fb;color:#315f9e;}
+.delivery-kind.neutral{background:#f3f4f6;border:1px solid #e7e9ed;color:#737983;}
+.created-expand-body .history-line{margin-top:12px;}
+.compact-actions{margin-top:18px;padding:18px 0 0!important;border-left:0!important;border-top:1px solid #e7e9ed;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.site-open-button{
+  min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 16px;border-radius:12px;text-decoration:none;font-weight:850;color:#fff;
+  background:linear-gradient(135deg,#171a1f,#2c3037);border:1px solid #171a1f;
+  box-shadow:0 10px 24px rgba(17,19,23,.15);transition:.2s ease;
+}
+.site-open-button:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(17,19,23,.20);}
+
+/* Admin - stage-driven progress and web deliveries */
+.stage-selector-wrap{max-width:640px;}
+.stage-selector-wrap .field{margin-bottom:13px;}
+.stage-selector-wrap select{font-weight:750;}
+.stage-selector-wrap small{display:block;margin-top:7px;color:#848a94;font-size:10px;line-height:1.5;}
+.delivery-options-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+.delivery-options-grid .field{margin-bottom:14px;}
+.delivery-options-grid .field>span em{font-style:normal;font-size:8px;color:#8d939d;background:#f2f3f5;padding:3px 6px;border-radius:999px;margin-left:5px;}
+
+@media (max-width:900px){
+  .expand-summary{align-items:flex-start;flex-direction:column;gap:14px;}
+  .expand-summary-side{width:100%;justify-content:flex-end;}
+  .summary-mini-progress{flex:1;max-width:none;}
+  .delivery-options-grid{grid-template-columns:1fr;}
+}
+
+@media (max-width:640px){
+  .public-shell .hero>div:first-child>p{font-size:14.5px!important;}
+  .public-shell .section-heading p{font-size:13.5px;}
+  .public-shell .field input,.public-shell .field textarea,.public-shell .field select{font-size:16px;}
+  .expand-summary{padding:17px 16px;min-height:92px;}
+  .expand-summary-main{gap:12px;align-items:flex-start;}
+  .project-icon.compact,.created-icon.compact,.rejected-icon.compact{width:44px;height:44px;flex-basis:44px;font-size:19px;}
+  .expand-summary-copy>strong{font-size:16px;white-space:normal;}
+  .expand-summary-copy>small{font-size:10.5px;white-space:normal;}
+  .expand-summary-side{justify-content:space-between;}
+  .summary-status-text{font-size:10px;}
+  .summary-progress-number{font-size:19px;}
+  .expand-body{padding:18px 16px 20px;}
+  .delivery-kind{font-size:9.5px;}
+  .compact-actions>*{width:100%;}
+}
+
+/* Extra legibility for small labels on the public portal */
+.public-shell .hero-stats div>span:last-child{font-size:11px!important;}
+.public-shell .flow-label{font-size:10.5px;}
+.public-shell .hero-flow-step{font-size:10.5px;}
+.public-shell .type-badge,.public-shell .change-badge,.public-shell .version-badge,.public-shell .rejected-badge,.public-shell .resubmitted-badge{font-size:9.5px;line-height:1.2;}
+.public-shell .top-actions .system-chip{font-size:11px;}

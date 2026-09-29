@@ -4,6 +4,7 @@ from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from urllib.parse import urlparse
 
 from flask import (
     Flask, abort, flash, jsonify, redirect, render_template, request,
@@ -82,6 +83,27 @@ UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", default_upload_dir)).resolve()
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "142723")
 
+PROGRESS_STAGES = [
+    ("Planejamento / análise", 10),
+    ("Mapeamento da solução", 25),
+    ("Desenvolvimento", 50),
+    ("Integrações e ajustes", 70),
+    ("Testes e validação", 85),
+    ("Ajustes finais", 95),
+]
+PROGRESS_BY_STAGE = dict(PROGRESS_STAGES)
+
+def normalize_http_url(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    if "://" not in value:
+        value = "https://" + value
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return value[:1000]
+
 db = SQLAlchemy(app)
 
 
@@ -124,6 +146,7 @@ class Project(db.Model):
     manual = db.Column(db.Text, nullable=True)
     file_name = db.Column(db.String(255), nullable=True)
     file_path = db.Column(db.String(500), nullable=True)
+    final_url = db.Column(db.String(1000), nullable=True)
     version = db.Column(db.Integer, nullable=False, default=1)
 
     created_at = db.Column(db.DateTime, nullable=False, default=now_local)
@@ -190,6 +213,8 @@ def ensure_schema_columns():
         additions.append("ALTER TABLE projects ADD COLUMN resubmitted_at TIMESTAMP")
     if "resubmission_count" not in columns:
         additions.append("ALTER TABLE projects ADD COLUMN resubmission_count INTEGER NOT NULL DEFAULT 0")
+    if "final_url" not in columns:
+        additions.append("ALTER TABLE projects ADD COLUMN final_url VARCHAR(1000)")
 
     if additions:
         with db.engine.begin() as connection:
@@ -567,6 +592,8 @@ def admin_dashboard():
         rejected=rejected,
         notifications=notifications,
         unread_count=unread_count,
+        progress_stages=PROGRESS_STAGES,
+        progress_stage_names=[name for name, _ in PROGRESS_STAGES],
     )
 
 
@@ -623,7 +650,7 @@ def approve_project(project_id):
     try:
         project.status = "in_progress"
         project.stage = "Planejamento / análise"
-        project.progress = max(project.progress, 5)
+        project.progress = PROGRESS_BY_STAGE[project.stage]
         project.approved_at = now_local()
         project.updated_at = now_local()
         db.session.commit()
@@ -685,13 +712,12 @@ def update_project(project_id):
 
     stage = request.form.get("stage", "").strip()
     notes = request.form.get("admin_notes", "").strip()
-    try:
-        progress = int(request.form.get("progress", project.progress))
-    except ValueError:
-        progress = project.progress
-    project.progress = max(0, min(99, progress))
-    if stage:
-        project.stage = stage[:80]
+    if stage not in PROGRESS_BY_STAGE:
+        flash("Selecione uma etapa válida do desenvolvimento.", "error")
+        return redirect(url_for("admin_dashboard") + "#andamento")
+
+    project.stage = stage
+    project.progress = PROGRESS_BY_STAGE[stage]
     project.admin_notes = notes or None
     project.updated_at = now_local()
     db.session.commit()
@@ -710,6 +736,11 @@ def complete_project(project_id):
     manual = request.form.get("manual", "").strip()
     admin_notes = request.form.get("final_notes", "").strip()
     uploaded = request.files.get("final_file")
+    raw_final_url = request.form.get("final_url", "").strip()
+    final_url = normalize_http_url(raw_final_url)
+    if raw_final_url and not final_url:
+        flash("Informe um link válido para o site/dashboard (ex.: https://meusite.com).", "error")
+        return redirect(url_for("admin_dashboard") + "#andamento")
 
     if project.source_type == "new":
         if uploaded and uploaded.filename:
@@ -717,6 +748,7 @@ def complete_project(project_id):
             project.file_name, project.file_path = save_upload(uploaded, project)
         project.manual = manual or project.manual
         project.admin_notes = admin_notes or project.admin_notes
+        project.final_url = final_url
         project.status = "completed"
         project.stage = "Concluída"
         project.progress = 100
@@ -737,6 +769,8 @@ def complete_project(project_id):
         parent.file_name, parent.file_path = save_upload(uploaded, parent)
     if manual:
         parent.manual = manual
+    if final_url:
+        parent.final_url = final_url
     parent.admin_notes = admin_notes or parent.admin_notes
     parent.version += 1
     parent.completed_at = now_local()
@@ -744,6 +778,8 @@ def complete_project(project_id):
 
     project.manual = manual or project.manual
     project.admin_notes = admin_notes or project.admin_notes
+    if final_url:
+        project.final_url = final_url
     project.status = "completed"
     project.stage = "Alteração concluída"
     project.progress = 100
@@ -763,12 +799,18 @@ def edit_created(project_id):
 
     manual = request.form.get("manual", "").strip()
     notes = request.form.get("admin_notes", "").strip()
+    raw_final_url = request.form.get("final_url", "").strip()
+    final_url = normalize_http_url(raw_final_url)
+    if raw_final_url and not final_url:
+        flash("Informe um link válido para o site/dashboard.", "error")
+        return redirect(url_for("admin_dashboard") + "#criadas")
     uploaded = request.files.get("final_file")
     if uploaded and uploaded.filename:
         delete_project_file(project)
         project.file_name, project.file_path = save_upload(uploaded, project)
     project.manual = manual or None
     project.admin_notes = notes or None
+    project.final_url = final_url
     project.updated_at = now_local()
     db.session.commit()
     flash("Automação criada atualizada.", "success")

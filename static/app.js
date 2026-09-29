@@ -167,6 +167,9 @@
     const notificationScroll = current.id === 'notifications-modal'
       ? $('.notification-modal-scroll', current)?.scrollTop || 0
       : 0;
+    const openDisclosures = new Set(
+      $$('details[data-disclosure-key][open]', current).map(item => item.dataset.disclosureKey)
+    );
 
     const replacement = document.importNode(source, true);
     replacement.dataset.liveToken = token;
@@ -175,6 +178,11 @@
       replacement.classList.add('open');
       replacement.setAttribute('aria-hidden', 'false');
     }
+
+    openDisclosures.forEach(key => {
+      const disclosure = replacement.querySelector(`details[data-disclosure-key="${CSS.escape(key)}"]`);
+      if (disclosure) disclosure.open = true;
+    });
 
     current.replaceWith(replacement);
 

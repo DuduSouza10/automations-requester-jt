@@ -184,32 +184,37 @@
 
       <div class="project-grid" data-live-region="public-ongoing-list">
         {% for item in ongoing %}
-          <article class="project-card glass">
-            <div class="project-card-head">
-              <div class="project-icon">{% if item.creation_type == 'Robô' %}🤖{% elif item.creation_type == 'Dashboard' %}📊{% else %}⚡{% endif %}</div>
-              <div class="project-tags">
-                <span class="type-badge">{{ item.creation_type }}</span>
-                {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
+          <details class="expand-card ongoing-expand glass" data-disclosure-key="ongoing-{{ item.public_id }}">
+            <summary class="expand-summary">
+              <span class="expand-summary-main">
+                <span class="project-icon compact">{% if item.creation_type == 'Robô' %}🤖{% elif item.creation_type == 'Dashboard' %}📊{% else %}⚡{% endif %}</span>
+                <span class="expand-summary-copy">
+                  <span class="project-tags"><span class="type-badge">{{ item.creation_type }}</span>{% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}</span>
+                  <strong>{{ item.name }}</strong>
+                  <small>{{ item.stage }} · Atualizado {{ item.updated_at|datetime_br }}</small>
+                </span>
+              </span>
+              <span class="expand-summary-side">
+                <span class="summary-progress-number">{{ item.progress }}%</span>
+                <span class="summary-mini-progress"><i style="width: {{ item.progress }}%"></i></span>
+                <span class="expand-chevron">⌄</span>
+              </span>
+            </summary>
+            <div class="expand-body">
+              <p class="project-description">{{ item.details }}</p>
+              {% if item.source_type == 'change' and item.parent %}<p class="linked-project">↳ Vinculada a: <strong>{{ item.parent.name }}</strong></p>{% endif %}
+              <div class="progress-block">
+                <div class="progress-label"><strong>{{ item.stage }}</strong><span>{{ item.progress }}%</span></div>
+                <div class="progress-track"><span style="width: {{ item.progress }}%"></span></div>
+              </div>
+              {% if item.admin_notes %}<div class="update-note"><span>Última atualização</span><p>{{ item.admin_notes }}</p></div>{% endif %}
+              <div class="project-meta">
+                <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
+                <span>Solicitado em {{ item.created_at|date_br }}</span>
+                <span>Atualizado {{ item.updated_at|datetime_br }}</span>
               </div>
             </div>
-            <h3>{{ item.name }}</h3>
-            <p class="project-description">{{ item.details }}</p>
-            {% if item.source_type == 'change' and item.parent %}
-              <p class="linked-project">↳ Vinculada a: <strong>{{ item.parent.name }}</strong></p>
-            {% endif %}
-            <div class="progress-block">
-              <div class="progress-label"><strong>{{ item.stage }}</strong><span>{{ item.progress }}%</span></div>
-              <div class="progress-track"><span style="width: {{ item.progress }}%"></span></div>
-            </div>
-            {% if item.admin_notes %}
-              <div class="update-note"><span>Última atualização</span><p>{{ item.admin_notes }}</p></div>
-            {% endif %}
-            <div class="project-meta">
-              <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
-              <span>Solicitado em {{ item.created_at|date_br }}</span>
-              <span>Atualizado {{ item.updated_at|datetime_br }}</span>
-            </div>
-          </article>
+          </details>
         {% else %}
           <div class="empty-state wide glass">
             <span>⚙</span>
@@ -232,37 +237,31 @@
 
       <div class="rejected-public-grid" data-live-region="public-rejected-list">
         {% for item in rejected %}
-          <article class="rejected-card glass">
-            <div class="rejected-card-head">
-              <div class="rejected-icon">⛔</div>
-              <div class="project-tags">
-                <span class="type-badge">{{ item.creation_type }}</span>
-                {% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}
-                <span class="rejected-badge">Recusada</span>
+          <details class="expand-card rejected-expand glass" data-disclosure-key="rejected-{{ item.public_id }}">
+            <summary class="expand-summary">
+              <span class="expand-summary-main">
+                <span class="rejected-icon compact">⛔</span>
+                <span class="expand-summary-copy">
+                  <span class="project-tags"><span class="type-badge">{{ item.creation_type }}</span>{% if item.source_type == 'change' %}<span class="change-badge">Alteração</span>{% endif %}<span class="rejected-badge">Recusada</span></span>
+                  <strong>{{ item.name }}</strong>
+                  <small>Recusada em {{ (item.rejected_at or item.updated_at)|datetime_br }}</small>
+                </span>
+              </span>
+              <span class="expand-summary-side"><span class="summary-status-text">Ver motivo e editar</span><span class="expand-chevron">⌄</span></span>
+            </summary>
+            <div class="expand-body">
+              {% if item.source_type == 'change' and item.parent %}<p class="linked-project">↳ Alteração vinculada a: <strong>{{ item.parent.name }}</strong></p>{% endif %}
+              <p class="project-description">{{ item.details }}</p>
+              <div class="rejection-reason"><span>Motivo da recusa</span><p>{{ item.rejection_reason or item.admin_notes or 'Motivo não informado.' }}</p></div>
+              <div class="project-meta rejected-meta">
+                <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
+                <span>Solicitado em {{ item.created_at|date_br }}</span>
+                <span>Recusado em {{ (item.rejected_at or item.updated_at)|datetime_br }}</span>
+                {% if item.resubmission_count %}<span>{{ item.resubmission_count }} reenvio{% if item.resubmission_count != 1 %}s{% endif %} anterior{% if item.resubmission_count != 1 %}es{% endif %}</span>{% endif %}
               </div>
+              <div class="rejected-card-actions"><button class="primary-button" type="button" data-modal-open="resubmit-{{ item.id }}">✏️ Editar e reenviar para aprovação</button></div>
             </div>
-            <h3>{{ item.name }}</h3>
-            {% if item.source_type == 'change' and item.parent %}
-              <p class="linked-project">↳ Alteração vinculada a: <strong>{{ item.parent.name }}</strong></p>
-            {% endif %}
-            <p class="project-description">{{ item.details }}</p>
-
-            <div class="rejection-reason">
-              <span>Motivo da recusa</span>
-              <p>{{ item.rejection_reason or item.admin_notes or 'Motivo não informado.' }}</p>
-            </div>
-
-            <div class="project-meta rejected-meta">
-              <span>Solicitante: {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</span>
-              <span>Solicitado em {{ item.created_at|date_br }}</span>
-              <span>Recusado em {{ (item.rejected_at or item.updated_at)|datetime_br }}</span>
-              {% if item.resubmission_count %}<span>{{ item.resubmission_count }} reenvio{% if item.resubmission_count != 1 %}s{% endif %} anterior{% if item.resubmission_count != 1 %}es{% endif %}</span>{% endif %}
-            </div>
-
-            <div class="rejected-card-actions">
-              <button class="primary-button full" type="button" data-modal-open="resubmit-{{ item.id }}">✏️ Editar e reenviar para aprovação</button>
-            </div>
-          </article>
+          </details>
 
           <div class="modal" id="resubmit-{{ item.id }}" aria-hidden="true">
             <div class="modal-backdrop" data-modal-close></div>
@@ -338,49 +337,45 @@
         <div>
           <span class="kicker">Entregas</span>
           <h2>Automações criadas</h2>
-          <p>Baixe os arquivos finais, consulte o passo a passo e solicite ajustes quando necessário.</p>
+          <p>Abra sites e dashboards, baixe arquivos finais e consulte o passo a passo quando necessário.</p>
         </div>
         <span class="status-pill done" data-live-region="public-created-count">{{ created|length }} entregues</span>
       </div>
 
       <div class="created-list" data-live-region="public-created-list">
         {% for item in created %}
-          <article class="created-card glass">
-            <div class="created-main">
-              <div class="created-icon">✓</div>
-              <div class="created-copy">
-                <div class="created-title-row">
-                  <div>
-                    <div class="project-tags"><span class="type-badge">{{ item.creation_type }}</span><span class="version-badge">v{{ item.version }}</span></div>
-                    <h3>{{ item.name }}</h3>
-                  </div>
-                  <time>Finalizado em {{ item.completed_at|date_br }}</time>
-                </div>
-                <p class="project-description">{{ item.details }}</p>
-                <div class="history-line">Solicitado por {{ item.requester or 'Não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</div>
-                {% if item.manual %}
-                  <details class="manual-box">
-                    <summary>Ver procedimento e passo a passo <span>⌄</span></summary>
-                    <div class="manual-content">{{ item.manual }}</div>
-                  </details>
-                {% else %}
-                  <div class="manual-empty">Procedimento ainda não informado.</div>
-                {% endif %}
-
-                {% if item.change_requests.count() > 0 %}
-                  <div class="history-line">{{ item.change_requests.count() }} solicitação(ões) de alteração registrada(s).</div>
-                {% endif %}
+          <details class="expand-card created-expand glass" data-disclosure-key="created-{{ item.public_id }}">
+            <summary class="expand-summary">
+              <span class="expand-summary-main">
+                <span class="created-icon compact">✓</span>
+                <span class="expand-summary-copy">
+                  <span class="project-tags"><span class="type-badge">{{ item.creation_type }}</span><span class="version-badge">v{{ item.version }}</span></span>
+                  <strong>{{ item.name }}</strong>
+                  <small>Finalizado em {{ item.completed_at|date_br }} · {{ item.requester or 'Solicitante não informado' }}{% if item.department %} · {{ item.department }}{% endif %}</small>
+                </span>
+              </span>
+              <span class="expand-summary-side">
+                {% if item.final_url %}<span class="delivery-kind web">🌐 Site disponível</span>{% elif item.file_path %}<span class="delivery-kind file">📦 Arquivo disponível</span>{% else %}<span class="delivery-kind neutral">Entrega registrada</span>{% endif %}
+                <span class="expand-chevron">⌄</span>
+              </span>
+            </summary>
+            <div class="expand-body created-expand-body">
+              <p class="project-description">{{ item.details }}</p>
+              {% if item.manual %}
+                <details class="manual-box">
+                  <summary>Ver procedimento e passo a passo <span>⌄</span></summary>
+                  <div class="manual-content">{{ item.manual }}</div>
+                </details>
+              {% else %}<div class="manual-empty">Procedimento ainda não informado.</div>{% endif %}
+              {% if item.change_requests.count() > 0 %}<div class="history-line">{{ item.change_requests.count() }} solicitação(ões) de alteração registrada(s).</div>{% endif %}
+              <div class="created-actions compact-actions">
+                {% if item.final_url %}<a class="site-open-button" href="{{ item.final_url }}" target="_blank" rel="noopener noreferrer">↗ Abrir site / dashboard</a>{% endif %}
+                {% if item.file_path %}<a class="secondary-button" href="{{ url_for('download_file', public_id=item.public_id) }}">↓ Baixar arquivo final</a>{% endif %}
+                {% if not item.final_url and not item.file_path %}<span class="file-missing">Sem link ou arquivo publicado</span>{% endif %}
+                <button class="primary-button slim" type="button" data-modal-open="change-{{ item.public_id }}">Solicitar alteração</button>
               </div>
             </div>
-            <div class="created-actions">
-              {% if item.file_path %}
-                <a class="secondary-button" href="{{ url_for('download_file', public_id=item.public_id) }}">↓ Baixar arquivo final</a>
-              {% else %}
-                <span class="file-missing">Sem arquivo anexado</span>
-              {% endif %}
-              <button class="primary-button slim" type="button" data-modal-open="change-{{ item.public_id }}">Solicitar alteração</button>
-            </div>
-          </article>
+          </details>
 
           <div class="modal" id="change-{{ item.public_id }}" aria-hidden="true">
             <div class="modal-backdrop" data-modal-close></div>
@@ -424,7 +419,7 @@
           <div class="empty-state wide glass">
             <span>⌁</span>
             <strong>Nenhuma automação concluída ainda</strong>
-            <p>As entregas finalizadas ficarão disponíveis aqui para download e consulta.</p>
+            <p>As entregas finalizadas ficarão disponíveis aqui para acesso e consulta.</p>
           </div>
         {% endfor %}
       </div>

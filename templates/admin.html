@@ -146,7 +146,7 @@
 
     <section class="admin-section" id="andamento">
       <div class="admin-section-head">
-        <div><span class="kicker">Produção</span><h2>Automações em andamento</h2><p>Atualize o estágio e o percentual conforme o desenvolvimento avançar.</p></div>
+        <div><span class="kicker">Produção</span><h2>Automações em andamento</h2><p>Selecione a etapa atual. O percentual é definido automaticamente pelo sistema.</p></div>
         <span class="status-pill progress" data-live-region="admin-ongoing-count">{{ ongoing|length }} ativas</span>
       </div>
 
@@ -179,9 +179,18 @@
             <div class="progress-track admin-progress"><span style="width: {{ item.progress }}%"></span></div>
 
             <form class="work-form" method="post" action="{{ url_for('update_project', project_id=item.id) }}">
-              <div class="form-grid status-grid">
-                <label class="field"><span>Etapa atual</span><input name="stage" maxlength="80" value="{{ item.stage }}" placeholder="Ex.: Desenvolvimento do backend"></label>
-                <label class="field"><span>Progresso (%)</span><input type="number" name="progress" min="0" max="99" value="{{ item.progress }}"></label>
+              <div class="stage-selector-wrap">
+                <label class="field"><span>Etapa atual</span>
+                  <select name="stage" required>
+                    {% if item.stage not in progress_stage_names %}
+                      <option value="{{ item.stage }}" selected disabled>{{ item.stage }} — {{ item.progress }}% (etapa antiga)</option>
+                    {% endif %}
+                    {% for stage_name, stage_progress in progress_stages %}
+                      <option value="{{ stage_name }}" {% if item.stage == stage_name %}selected{% endif %}>{{ stage_name }} — {{ stage_progress }}%</option>
+                    {% endfor %}
+                  </select>
+                  <small>O progresso é calculado automaticamente de acordo com a etapa selecionada.</small>
+                </label>
               </div>
               <label class="field"><span>Atualização para quem acompanha</span><textarea name="admin_notes" rows="3" placeholder="Ex.: Integração concluída; iniciando testes.">{{ item.admin_notes or '' }}</textarea></label>
               <div class="work-actions">
@@ -198,9 +207,12 @@
               <button class="modal-x" type="button" data-modal-close>×</button>
               <span class="kicker">Entrega final</span>
               <h3>{% if item.source_type == 'change' %}Concluir alteração{% else %}Concluir automação{% endif %}</h3>
-              <p>{% if item.source_type == 'change' %}Os dados abaixo atualizarão a automação original e incrementarão a versão.{% else %}Anexe o arquivo final e registre o procedimento de uso para publicar a entrega.{% endif %}</p>
+              <p>{% if item.source_type == 'change' %}Os dados abaixo atualizarão a automação original e incrementarão a versão.{% else %}Publique um link para sites/dashboards ou anexe um arquivo quando a entrega for executável, planilha, ZIP ou outro material.{% endif %}</p>
               <form method="post" enctype="multipart/form-data" action="{{ url_for('complete_project', project_id=item.id) }}">
-                <label class="field file-field"><span>Arquivo final</span><input type="file" name="final_file"><small>{% if item.source_type == 'change' %}Opcional: deixe vazio para manter o arquivo atual.{% else %}Pode ser ZIP, EXE, XLSX, PDF, código-fonte ou outro arquivo da entrega.{% endif %}</small></label>
+                <div class="delivery-options-grid">
+                  <label class="field"><span>Link do site / dashboard <em>Opcional</em></span><input type="text" name="final_url" placeholder="https://meu-dashboard.up.railway.app"><small>{% if item.source_type == 'change' %}Se deixar vazio, o link atual da automação será mantido.{% else %}Use este campo quando a entrega for um site, dashboard ou sistema web.{% endif %}</small></label>
+                  <label class="field file-field"><span>Arquivo final <em>Opcional</em></span><input type="file" name="final_file"><small>{% if item.source_type == 'change' %}Deixe vazio para manter o arquivo atual.{% else %}Use para ZIP, EXE, XLSX, PDF, código-fonte ou outro arquivo da entrega.{% endif %}</small></label>
+                </div>
                 <label class="field"><span>Procedimento e passo a passo</span><textarea name="manual" rows="9" placeholder="1. Como instalar/abrir...&#10;2. Como configurar...&#10;3. Como executar...&#10;4. Observações e dependências..."></textarea></label>
                 <label class="field"><span>Observações finais</span><textarea name="final_notes" rows="3" placeholder="Notas adicionais da entrega"></textarea></label>
                 <div class="modal-actions"><button class="ghost-button" type="button" data-modal-close>Cancelar</button><button class="primary-button" type="submit">Concluir e publicar</button></div>
@@ -320,10 +332,12 @@
                   <span>Setor: <strong>{{ item.department or 'Não informado' }}</strong></span>
                   <span>Finalizada: <strong>{{ item.completed_at|datetime_br }}</strong></span>
                   <span>Arquivo: <strong>{{ item.file_name or 'Não anexado' }}</strong></span>
+                  <span>Link: <strong>{% if item.final_url %}Publicado{% else %}Não informado{% endif %}</strong></span>
                   <span>Alterações: <strong>{{ item.change_requests.count() }}</strong></span>
                 </div>
               </div>
               <div class="delivered-buttons">
+                {% if item.final_url %}<a class="primary-button" href="{{ item.final_url }}" target="_blank" rel="noopener noreferrer">↗ Abrir site</a>{% endif %}
                 {% if item.file_path %}<a class="secondary-button" href="{{ url_for('download_file', public_id=item.public_id) }}">↓ Baixar</a>{% endif %}
                 <button class="ghost-button" type="button" data-collapse-toggle="edit-created-{{ item.id }}">Editar entrega</button>
               </div>
@@ -331,9 +345,10 @@
             <div class="collapse-panel" id="edit-created-{{ item.id }}">
               <form method="post" enctype="multipart/form-data" action="{{ url_for('edit_created', project_id=item.id) }}">
                 <div class="form-grid two">
+                  <label class="field"><span>Link do site / dashboard</span><input type="text" name="final_url" value="{{ item.final_url or '' }}" placeholder="https://meu-dashboard.up.railway.app"><small>Apague o conteúdo para remover o link publicado.</small></label>
                   <label class="field file-field"><span>Substituir arquivo final</span><input type="file" name="final_file"><small>Deixe vazio para manter o arquivo atual.</small></label>
-                  <label class="field"><span>Observações</span><textarea name="admin_notes" rows="4">{{ item.admin_notes or '' }}</textarea></label>
                 </div>
+                <label class="field"><span>Observações</span><textarea name="admin_notes" rows="4">{{ item.admin_notes or '' }}</textarea></label>
                 <label class="field"><span>Procedimento / passo a passo</span><textarea name="manual" rows="8">{{ item.manual or '' }}</textarea></label>
                 <div class="work-actions"><button class="secondary-button" type="submit">Salvar alterações</button><button class="danger-outline" type="button" data-modal-open="delete-{{ item.id }}">Excluir solicitação</button></div>
               </form>
